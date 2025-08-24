@@ -137,13 +137,13 @@ This is an extension of Markdown that allows you to place `<figure>` elements by
 <div style="display:flex; gap:20px; align-items:center;">
   <div>
 
-![](https://files.catbox.moe/jlqfik.png?w=100px)
+![](/rainbow.webp?w=100px)
 Rainbow Dash
 
   </div>
   <div>
 
-![](https://files.catbox.moe/xu3ax5.png?w=100px)
+![](/rarity.webp?w=100px)
 Rarity
 
   </div>
@@ -159,3 +159,5 @@ Note how we're appending `?w=100px` after the image URL and Trash automatically 
 ![alt text|50%](https://example.com/image.png "title")
 ![alt text|50%](https://example.com/image.png?align=left "title")
 ```
+
+(you might remember this from [Obsidian](https://obsidian.md/))
