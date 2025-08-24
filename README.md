@@ -2,6 +2,14 @@
 
 Trash - a stupid, simple website compiler.
 
+## Installation
+
+Install [Go](https://go.dev/dl/) if you haven't yet.
+
+```console
+$ go install github.com/zeozeozeo/trash@latest
+```
+
 ## Usage
 
 ```console
