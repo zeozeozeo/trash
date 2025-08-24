@@ -217,14 +217,14 @@ This is the home page.
 {{- range $posts }}
     <li><a href="{{ .Permalink }}">{{ .Metadata.title }}</a> - {{ .Metadata.date }}</li>
 {{- end }}
-</ul>`, "pages", "index.md")
+</ul>`, pagesDir, "index.md")
 
 	writefile(`---
 title: "My First Post"
 date: "2025-08-24"
 ---
 
-Hello, world! This is my first post.`, "pages", "posts", "first-post.md")
+Hello, world! This is my first post.`, pagesDir, "posts", "first-post.md")
 
 	writefile("/out", ".gitignore")
 
@@ -436,7 +436,7 @@ func watchAndRebuild(onRebuild func()) {
 	}
 	defer watcher.Close()
 
-	for _, path := range []string{"pages", "static", "templates"} {
+	for _, path := range []string{pagesDir, staticDir, templateDir} {
 		filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 			if info.IsDir() {
 				if err := watcher.Add(path); err != nil {
