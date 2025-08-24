@@ -2,6 +2,9 @@
 
 Trash - a stupid, simple website compiler.
 
+> [!CAUTION]
+> The demos are quite ugly and unfinished, but the compiler itself is already pretty usable.
+
 ## Features
 
 - $LaTeX$ expressions (no client-side JS!)
@@ -13,6 +16,7 @@ Trash - a stupid, simple website compiler.
 - Various Markdown extensions such as image `<figure>`s, image sizing, callouts, Pandoc-style fences, `:emojis:`, and more
 - YAML `---` and TOML `+++` frontmatter parsing support
 - Automatic anchor placement
+- Under 700 lines of Go code [in a single file](./main.go)
 
 ## Installation
 
