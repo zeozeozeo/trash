@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Page.Metadata.title }}</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>{{ .Page.Metadata.title }}</h1>
+        <main>
+            {{ .Page.Content }}
+        </main>
+    </div>
+
+	{{ if .IsServing }}
+    <script>
+        const socket = new WebSocket("ws://" + window.location.host + "/ws");
+        socket.addEventListener("message", (event) => {
+            if (event.data === "reload") {
+                window.location.reload();
+            }
+        });
+        socket.addEventListener("close", () => {
+            console.log("Live reload connection lost. Please refresh manually.");
+        });
+    </script>
+    {{ end }}
+</body>
+</html>
