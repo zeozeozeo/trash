@@ -2,6 +2,17 @@
 
 Trash - a stupid, simple website compiler.
 
+## Features
+
+- $LaTeX$ expressions (no client-side JS!)
+- [D2](https://d2lang.com/) diagram rendering (no JS still!)
+- [Mermaid](https://mermaid.js.org/) diagram rendering (yeah, still no client-side JS)
+- [Pikchr](https://pikchr.org/home/doc/trunk/homepage.md) diagram rendering (you guessed it)
+- Painless embedding of YouTube videos, HTML5 audio, and more in native Markdown
+- Syntax highlighting
+- Various Markdown extensions such as image `<figure>`s, image sizing, callouts, Pandoc-style fences, `:emojis:`, and more
+- YAML `---` and TOML `+++` frontmatter parsing support
+
 ## Installation
 
 Install [Go](https://go.dev/dl/) if you haven't yet.

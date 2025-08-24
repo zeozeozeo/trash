@@ -1,10 +1,23 @@
 body {
-	font-family: sans-serif;
-	color: #333;
+  font-family: sans-serif;
+  color: #333;
 }
 
 .container {
-	max-width: 800px;
-	margin: 2rem auto;
-	padding: 0 1rem;
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.blue {
+  background-color: steelblue;
+  padding: 5px;
+}
+
+#insideme {
+  color: yellow;
+}
+
+.red {
+  background-color: red;
 }

@@ -9,19 +9,41 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	text_template "text/template"
 	"time"
 
+	_ "embed"
+
+	d2 "github.com/FurqanSoftware/goldmark-d2"
 	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/websocket"
+	pikchr "github.com/jchenry/goldmark-pikchr"
+	figure "github.com/mangoumbrella/goldmark-figure"
+	enclave "github.com/quailyquaily/goldmark-enclave"
+	enclaveCallout "github.com/quailyquaily/goldmark-enclave/callout"
+	enclaveCore "github.com/quailyquaily/goldmark-enclave/core"
+	fences "github.com/stefanfritsch/goldmark-fences"
+	treeblood "github.com/wyatt915/goldmark-treeblood"
 	"github.com/yuin/goldmark"
+	emoji "github.com/yuin/goldmark-emoji"
+	highlighting "github.com/yuin/goldmark-highlighting/v2"
+	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/renderer/html"
-	"gopkg.in/yaml.v2"
+	"github.com/yuin/goldmark/text"
+	"go.abhg.dev/goldmark/frontmatter"
+	"go.abhg.dev/goldmark/mermaid"
+	"go.abhg.dev/goldmark/mermaid/mermaidcdp"
+)
+
+var (
+	//go:embed mermaid.min.js
+	mermaidJSSource string
+
+	mermaidCompiler *mermaidcdp.Compiler
 )
 
 func usage() {
@@ -52,6 +74,12 @@ func main() {
 		usage()
 		return
 	}
+
+	defer func() {
+		if mermaidCompiler != nil {
+			mermaidCompiler.Close()
+		}
+	}()
 
 	var cmd string
 	if len(os.Args) > 1 {
@@ -257,9 +285,20 @@ type TemplateData struct {
 	IsServing bool
 }
 
-var frontMatterRegex = regexp.MustCompile(`(?s)^---\n(.*?)\n---\n(.*)`)
+func maybeInitMermaidCDP() {
+	if mermaidCompiler != nil {
+		return
+	}
+	var err error
+	mermaidCompiler, err = mermaidcdp.New(&mermaidcdp.Config{
+		JSSource: mermaidJSSource,
+	})
+	if err != nil {
+		printerr("Failed to initialize Mermaid with CDP: %v; falling back to clientside JS", err)
+	}
+}
 
-func buildCmd(isServing bool, copyStatic bool) {
+func buildCmd(isServing, copyStatic bool) {
 	if !checkAllDirsExist(pagesDir, templateDir) {
 		usage()
 		os.Exit(1)
@@ -275,8 +314,9 @@ func buildCmd(isServing bool, copyStatic bool) {
 
 	start := time.Now()
 
-	// discover markdown files
+	// pass 1: discover markdown files
 	var allPages []*Page
+	var hasMermaid bool
 	err := filepath.Walk(pagesDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -293,28 +333,20 @@ func buildCmd(isServing bool, copyStatic bool) {
 		page := &Page{
 			SourcePath: path,
 			Metadata:   make(map[string]any),
+			Markdown:   string(fileContent),
 		}
 
-		// try to parse frontmatter
-		matches := frontMatterRegex.FindStringSubmatch(string(fileContent))
-		if len(matches) == 3 {
-			if err := yaml.Unmarshal([]byte(matches[1]), &page.Metadata); err != nil {
-				return fmt.Errorf("failed to parse front matter in %s: %w", path, err)
-			}
-			page.Markdown = matches[2]
-		} else {
-			page.Markdown = string(fileContent)
-		}
-
-		if _, ok := page.Metadata["title"]; !ok {
-			page.Metadata["title"] = "Untitled"
-		}
+		hasMermaid = hasMermaid || strings.Contains(page.Markdown, "```mermaid")
 
 		// generate permalink
 		relPath, _ := filepath.Rel(pagesDir, path)
-		page.Permalink = "/" + strings.TrimSuffix(relPath, ".md") + ".html"
+		page.Permalink = "/" + strings.TrimSuffix(filepath.ToSlash(relPath), ".md") + ".html"
 		if filepath.Base(relPath) == "index.md" {
-			page.Permalink = "/" + filepath.Dir(relPath) + "/"
+			dir := filepath.ToSlash(filepath.Dir(relPath))
+			if dir == "." {
+				dir = ""
+			}
+			page.Permalink = "/" + dir + "/"
 		}
 
 		allPages = append(allPages, page)
@@ -327,11 +359,28 @@ func buildCmd(isServing bool, copyStatic bool) {
 
 	site := Site{Pages: allPages}
 
+	// pass 2: parse all frontmatter
+	{
+		mdFrontmatter := goldmark.New(
+			goldmark.WithExtensions(&frontmatter.Extender{Mode: frontmatter.SetMetadata}),
+		)
+		for _, page := range allPages {
+			root := mdFrontmatter.Parser().Parse(text.NewReader([]byte(page.Markdown)))
+			doc := root.OwnerDocument()
+			page.Metadata = doc.Meta()
+
+			if _, ok := page.Metadata["title"]; !ok {
+				page.Metadata["title"] = "Untitled"
+			}
+		}
+	}
+
 	funcMap := text_template.FuncMap{
 		"readDir": func(dir string) []*Page {
 			var results []*Page
 			for _, p := range allPages {
-				if strings.HasPrefix(p.SourcePath, filepath.Join(pagesDir, dir)) {
+				relPath, _ := filepath.Rel(pagesDir, p.SourcePath)
+				if strings.HasPrefix(filepath.ToSlash(relPath), dir+"/") {
 					results = append(results, p)
 				}
 			}
@@ -339,22 +388,60 @@ func buildCmd(isServing bool, copyStatic bool) {
 		},
 		"sortBy": func(key string, order string, pages []*Page) []*Page {
 			sort.SliceStable(pages, func(i, j int) bool {
-				valI, okI := pages[i].Metadata[key].(string)
-				valJ, okJ := pages[j].Metadata[key].(string)
-				if !okI || !okJ {
+				valI, okI := pages[i].Metadata[key]
+				valJ, okJ := pages[j].Metadata[key]
+				if !okI {
 					return false
 				}
-				if strings.ToLower(order) == "desc" {
-					return valI > valJ
+				if !okJ {
+					return true
 				}
-				return valI < valJ
+
+				strI := fmt.Sprintf("%v", valI)
+				strJ := fmt.Sprintf("%v", valJ)
+
+				if strings.ToLower(order) == "desc" {
+					return strI > strJ
+				}
+				return strI < strJ
 			})
 			return pages
 		},
 	}
 
-	// compile markdown to html
-	md := goldmark.New(goldmark.WithRendererOptions(html.WithUnsafe()))
+	if hasMermaid {
+		maybeInitMermaidCDP()
+	}
+
+	mdContent := goldmark.New(
+		goldmark.WithRendererOptions(html.WithUnsafe()),
+		goldmark.WithExtensions(
+			extension.GFM,
+			extension.DefinitionList,
+			extension.Footnote,
+			emoji.Emoji,
+			treeblood.MathML(),
+			&frontmatter.Extender{},
+			&d2.Extender{Sketch: true},
+			&mermaid.Extender{
+				Compiler: mermaidCompiler,
+			},
+			&pikchr.Extender{},
+			enclave.New(&enclaveCore.Config{}),
+			enclaveCallout.New(),
+			highlighting.Highlighting,
+			&fences.Extender{},
+			figure.Figure,
+		),
+	)
+
+	layout, err := template.ParseFiles(filepath.Join(templateDir, "base.html"))
+	if err != nil {
+		printerr("Could not parse base layout template: %v", err)
+		os.Exit(1)
+	}
+
+	// pass 3: process markdown and render HTML
 	for _, page := range allPages {
 		tmpl, err := text_template.New(page.SourcePath).Funcs(funcMap).Parse(page.Markdown)
 		if err != nil {
@@ -369,20 +456,12 @@ func buildCmd(isServing bool, copyStatic bool) {
 		}
 
 		var finalHtml bytes.Buffer
-		if err := md.Convert(processedMd.Bytes(), &finalHtml); err != nil {
+		if err := mdContent.Convert(processedMd.Bytes(), &finalHtml); err != nil {
 			printerr("Failed to convert markdown for %s: %v", page.SourcePath, err)
 			continue
 		}
 		page.Content = template.HTML(finalHtml.String())
-	}
 
-	layout, err := template.ParseFiles(filepath.Join(templateDir, "base.html"))
-	if err != nil {
-		printerr("Could not parse base layout template: %v", err)
-		os.Exit(1)
-	}
-
-	for _, page := range allPages {
 		outputPath := filepath.Join(outputDir, strings.TrimPrefix(page.Permalink, "/"))
 		if strings.HasSuffix(page.Permalink, "/") {
 			outputPath = filepath.Join(outputPath, "index.html")
