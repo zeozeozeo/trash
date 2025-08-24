@@ -32,8 +32,10 @@ import (
 	emoji "github.com/yuin/goldmark-emoji"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
+	"go.abhg.dev/goldmark/anchor"
 	"go.abhg.dev/goldmark/frontmatter"
 	"go.abhg.dev/goldmark/mermaid"
 	"go.abhg.dev/goldmark/mermaid/mermaidcdp"
@@ -415,6 +417,9 @@ func buildCmd(isServing, copyStatic bool) {
 
 	mdContent := goldmark.New(
 		goldmark.WithRendererOptions(html.WithUnsafe()),
+		goldmark.WithParserOptions(
+			parser.WithAutoHeadingID(),
+		),
 		goldmark.WithExtensions(
 			extension.GFM,
 			extension.DefinitionList,
@@ -432,6 +437,7 @@ func buildCmd(isServing, copyStatic bool) {
 			highlighting.Highlighting,
 			&fences.Extender{},
 			figure.Figure,
+			&anchor.Extender{},
 		),
 	)
 

@@ -12,6 +12,7 @@ Trash - a stupid, simple website compiler.
 - Syntax highlighting
 - Various Markdown extensions such as image `<figure>`s, image sizing, callouts, Pandoc-style fences, `:emojis:`, and more
 - YAML `---` and TOML `+++` frontmatter parsing support
+- Automatic anchor placement
 
 ## Installation
 
