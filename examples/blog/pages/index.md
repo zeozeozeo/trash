@@ -11,9 +11,8 @@ Click on a blog post!
 <!-- display all posts in the `posts` directory -->
 
 {{ $posts := readDir "posts" | sortBy "date" "desc" }}
-
-<ul>
 {{- range $posts }}
-    <li><a href="{{ .Permalink }}">{{ .Metadata.title }}</a> - {{ .Metadata.date }}</li>
+
+- [{{ .Metadata.title }}]({{ .Permalink }}) - {{ .Metadata.description }} <span style="color: var(--gruvbox-light4)">{{ .Metadata.date }}<span>
+
 {{- end }}
-</ul>

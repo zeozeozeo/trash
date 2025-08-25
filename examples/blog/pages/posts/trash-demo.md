@@ -1,6 +1,6 @@
 ---
 title: "Trash Demo"
-description: "A demo of the Trash website compiler."
+description: "A demo of the Trash website compiler"
 date: "2025-08-24"
 ---
 
