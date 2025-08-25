@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"html/template"
@@ -331,27 +332,77 @@ func newMinifier() *minify.M {
 	m.Add("text/asp", aspMinifier)
 	m.Add("text/x-ejs-template", aspMinifier)
 
-	phpMinifier := &minifyHtml.Minifier{}
-	phpMinifier.TemplateDelims = [2]string{"<?", "?>"} // also handles <?php
-	m.Add("application/x-httpd-php", phpMinifier)
-
-	tmplMinifier := &minifyHtml.Minifier{}
-	tmplMinifier.TemplateDelims = [2]string{"{{", "}}"}
-	m.Add("text/x-go-template", tmplMinifier)
-	m.Add("text/x-mustache-template", tmplMinifier)
-	m.Add("text/x-handlebars-template", tmplMinifier)
-
 	return m
 }
 
-func minifyHtmlBuf(m *minify.M, html bytes.Buffer) bytes.Buffer {
+func minifyBuf(m *minify.M, text bytes.Buffer, mime string) bytes.Buffer {
 	var buf bytes.Buffer
-	err := m.Minify("text/html", &buf, &html)
+	err := m.Minify(mime, &buf, &text)
 	if err != nil {
-		printerr("Failed to minify HTML: %v", err)
-		return html
+		printerr("Failed to minify %s: %v", mime, err)
+		return text
 	}
 	return buf
+}
+
+var minifyTypes = map[string]string{
+	".css":              "text/css",
+	".html":             "text/html",
+	".htm":              "text/html",
+	".svg":              "image/svg+xml",
+	".js":               "application/javascript",
+	".mjs":              "application/javascript",
+	".cjs":              "application/javascript",
+	".json":             "application/json",
+	".xml":              "application/xml",
+	".importmap":        "importmap",
+	".speculationrules": "speculationrules",
+	".asp":              "text/asp",
+	".ejs":              "text/x-ejs-template",
+}
+
+func minifyStaticFile(m *minify.M, srcPath, destPath string, info os.FileInfo) error {
+	ext := strings.ToLower(filepath.Ext(srcPath))
+	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+		return err
+	}
+
+	srcFile, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	outFile, err := os.Create(destPath)
+	if err != nil {
+		return err
+	}
+	defer outFile.Close()
+
+	if mediaType, ok := minifyTypes[ext]; ok {
+		// a minifier is registered for the extension
+		var buf bytes.Buffer
+		if _, err := io.Copy(&buf, srcFile); err != nil {
+			return err
+		}
+
+		minified := minifyBuf(m, buf, mediaType)
+
+		writer := bufio.NewWriter(outFile)
+		if _, err := io.Copy(writer, &minified); err != nil {
+			return err
+		}
+		if err := writer.Flush(); err != nil {
+			return err
+		}
+	} else {
+		// just copy
+		if _, err := io.Copy(outFile, srcFile); err != nil {
+			return err
+		}
+	}
+
+	return os.Chmod(destPath, info.Mode())
 }
 
 func buildCmd(isServing, copyStatic bool) {
@@ -555,7 +606,7 @@ func buildCmd(isServing, copyStatic bool) {
 		}
 		defer file.Close()
 
-		minifiedBuf := minifyHtmlBuf(m, finalBuf)
+		minifiedBuf := minifyBuf(m, finalBuf, "text/html")
 		io.Copy(file, &minifiedBuf)
 	}
 
@@ -568,11 +619,11 @@ func buildCmd(isServing, copyStatic bool) {
 			if info.IsDir() {
 				return nil
 			}
+
 			relPath, _ := filepath.Rel(staticDir, path)
 			destPath := filepath.Join(outputDir, relPath)
-			content, _ := os.ReadFile(path)
-			os.WriteFile(destPath, content, info.Mode())
-			return nil
+
+			return minifyStaticFile(m, path, destPath, info)
 		})
 	}
 
