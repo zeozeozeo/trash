@@ -391,10 +391,7 @@ func minifyStaticFile(m *minify.M, srcPath, dstPath string, info os.FileInfo) er
 		}
 	} else {
 		// just copy
-		if _, err := io.Copy(writer, srcFile); err != nil {
-			return err
-		}
-		if err := writer.Flush(); err != nil {
+		if _, err := io.Copy(outFile, srcFile); err != nil {
 			return err
 		}
 	}
