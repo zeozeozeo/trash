@@ -379,10 +379,9 @@ func minifyStaticFile(m *minify.M, srcPath, dstPath string, info os.FileInfo) er
 	}
 	defer outFile.Close()
 
-	writer := bufio.NewWriter(outFile)
-
 	if mediaType, ok := minifyTypes[ext]; ok {
 		// a minifier is registered for the extension
+		writer := bufio.NewWriter(outFile)
 		if err := m.Minify(mediaType, writer, srcFile); err != nil {
 			return err
 		}
