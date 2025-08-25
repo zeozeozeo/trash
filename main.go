@@ -518,11 +518,14 @@ func buildCmd(isServing, copyStatic bool) {
 		goldmark.WithRendererOptions(html.WithUnsafe()),
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(),
+			parser.WithAttribute(),
 		),
 		goldmark.WithExtensions(
 			extension.GFM,
 			extension.DefinitionList,
 			extension.Footnote,
+			extension.Typographer,
+			extension.CJK,
 			emoji.Emoji,
 			treeblood.MathML(),
 			&frontmatter.Extender{},

@@ -160,3 +160,44 @@ Note how we're appending `?w=100px` after the image URL and Trash automatically 
 ```
 
 (you might remember this from [Obsidian](https://obsidian.md/))
+
+# Other extensions
+
+#### This is a red heading made with the CommonMark [attribute syntax](https://talk.commonmark.org/t/consistent-attribute-syntax/272) ## {.highlight-nl}
+
+Trash fully supports all extensions of [GitHub Flavored Markdown](https://github.github.com/gfm/) (including tables, autolinks, ~~strikethrough text~~, tasklists, definition lists and footnotes):
+
+| Pony Name        | Species    | Color Scheme    | Element    |
+| :--------------- | :--------- | :-------------- | :--------- |
+| Twilight Sparkle | Alicorn    | Purple / Pink   | Magic      |
+| Rainbow Dash     | Pegasus    | Blue / Rainbow  | Loyalty    |
+| Pinkie Pie       | Earth Pony | Pink            | Laughter   |
+| Applejack        | Earth Pony | Orange / Blonde | Honesty    |
+| Fluttershy       | Pegasus    | Yellow / Pink   | Kindness   |
+| Rarity           | Unicorn    | White / Purple  | Generosity |
+
+- [x] foo
+  - [ ] bar
+  - [x] baz
+- [ ] bim
+
+This is a test of the typographer extension -- this should've been an em dash `--`, <<this should be in quotation marks>>, "this should be in quotes" and this should be an ellipsis...
+
+#### East Asian line breaks
+
+小马宝莉的朋友们  
+她们一起经历冒险。  
+トワイライトスパークルと仲間たち  
+彼女たちは友情の魔法を信じています。  
+마이리틀포니 친구들  
+그들은 언제나 우정을 소중히 합니다。
+
+(Soft line breaks are rendered as a newline.)
+
+#### Escaped space
+
+小马宝莉\ 朋友们  
+トワイライト\ スパークル  
+마이리틀포니\ 친구들
+
+(The backslashes before the spaces are rendered as visible spaces instead of collapsing.)
