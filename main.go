@@ -361,9 +361,9 @@ var minifyTypes = map[string]string{
 	".ejs":              "text/x-ejs-template",
 }
 
-func minifyStaticFile(m *minify.M, srcPath, destPath string, info os.FileInfo) error {
+func minifyStaticFile(m *minify.M, srcPath, dstPath string, info os.FileInfo) error {
 	ext := strings.ToLower(filepath.Ext(srcPath))
-	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
 		return err
 	}
 
@@ -373,23 +373,17 @@ func minifyStaticFile(m *minify.M, srcPath, destPath string, info os.FileInfo) e
 	}
 	defer srcFile.Close()
 
-	outFile, err := os.Create(destPath)
+	outFile, err := os.Create(dstPath)
 	if err != nil {
 		return err
 	}
 	defer outFile.Close()
 
+	writer := bufio.NewWriter(outFile)
+
 	if mediaType, ok := minifyTypes[ext]; ok {
 		// a minifier is registered for the extension
-		var buf bytes.Buffer
-		if _, err := io.Copy(&buf, srcFile); err != nil {
-			return err
-		}
-
-		minified := minifyBuf(m, buf, mediaType)
-
-		writer := bufio.NewWriter(outFile)
-		if _, err := io.Copy(writer, &minified); err != nil {
+		if err := m.Minify(mediaType, writer, srcFile); err != nil {
 			return err
 		}
 		if err := writer.Flush(); err != nil {
@@ -397,12 +391,15 @@ func minifyStaticFile(m *minify.M, srcPath, destPath string, info os.FileInfo) e
 		}
 	} else {
 		// just copy
-		if _, err := io.Copy(outFile, srcFile); err != nil {
+		if _, err := io.Copy(writer, srcFile); err != nil {
+			return err
+		}
+		if err := writer.Flush(); err != nil {
 			return err
 		}
 	}
 
-	return os.Chmod(destPath, info.Mode())
+	return os.Chmod(dstPath, info.Mode())
 }
 
 func buildCmd(isServing, copyStatic bool) {
@@ -621,9 +618,9 @@ func buildCmd(isServing, copyStatic bool) {
 			}
 
 			relPath, _ := filepath.Rel(staticDir, path)
-			destPath := filepath.Join(outputDir, relPath)
+			dstPath := filepath.Join(outputDir, relPath)
 
-			return minifyStaticFile(m, path, destPath, info)
+			return minifyStaticFile(m, path, dstPath, info)
 		})
 	}
 
