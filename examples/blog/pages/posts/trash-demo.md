@@ -82,7 +82,7 @@ box same "Pikchr" "Formatter" "(pikchr.c)" fit
 
 ![](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
 
-![](https://files.catbox.moe/cypg0m.mp3)
+![](https://archive.org/download/tvtunes_26154/My%20Little%20Pony%20-%20Friendship%20is%20Magic%20-%20Babs%20Seed.mp3)
 
 ### Syntax highlighting
 
@@ -92,7 +92,6 @@ box same "Pikchr" "Formatter" "(pikchr.c)" fit
 func main() {
     fmt.Println("ok")
 }
-
 ```
 
 JavaScript:
@@ -137,13 +136,13 @@ This is an extension of Markdown that allows you to place `<figure>` elements by
 <div style="display:flex; gap:20px; align-items:center;">
   <div>
 
-![](/rainbow.webp?w=100px)
+![](/rainbow.webp?h=100px)
 Rainbow Dash
 
   </div>
   <div>
 
-![](/rarity.webp?w=100px)
+![](/rarity.webp?h=100px)
 Rarity
 
   </div>

@@ -1,8 +1,8 @@
 ---
-title: "Welcome!"
+title: "Trash Blog Demo"
 ---
 
-This is the home page.
+Click on a blog post!
 
 ## Blog Posts
 

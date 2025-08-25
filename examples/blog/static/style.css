@@ -1,6 +1,44 @@
+/* Gruvbox color palette */
+:root {
+  --gruvbox-dark0: #282828;
+  --gruvbox-dark1: #3c3836;
+  --gruvbox-dark2: #504945;
+  --gruvbox-dark3: #665c54;
+  --gruvbox-dark4: #7c6f64;
+
+  --gruvbox-light0: #fbf1c7;
+  --gruvbox-light1: #ebdbb2;
+  --gruvbox-light2: #d5c4a1;
+  --gruvbox-light3: #bdae93;
+  --gruvbox-light4: #a89984;
+
+  --gruvbox-red: #cc241d;
+  --gruvbox-green: #8ec07c;
+  --gruvbox-yellow: #d79921;
+  --gruvbox-blue: #458588;
+  --gruvbox-purple: #b16286;
+  --gruvbox-aqua: #689d6a;
+  --gruvbox-orange: #d65d0e;
+
+  /* Soft variants */
+  --gruvbox-red-soft: #9d0006;
+  --gruvbox-green-soft: #8ec07c;
+  --gruvbox-yellow-soft: #d79921;
+  --gruvbox-blue-soft: #458588;
+  --gruvbox-purple-soft: #8f3f71;
+  --gruvbox-aqua-soft: #689d6a;
+  --gruvbox-orange-soft: #af3a03;
+}
+
+/* Base styles */
 body {
-  font-family: sans-serif;
-  color: #333;
+  font-family: "Fira Mono", monospace;
+  background-color: var(--gruvbox-dark0);
+  color: var(--gruvbox-light1);
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+  font-size: 16px;
 }
 
 .container {
@@ -9,15 +47,439 @@ body {
   padding: 0 1rem;
 }
 
-.blue {
-  background-color: steelblue;
-  padding: 5px;
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--gruvbox-light0);
+  font-weight: 500;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-family: "Fira Mono", monospace;
 }
 
-#insideme {
-  color: yellow;
+h1 {
+  font-size: 1.8rem;
+  border-bottom: 1px solid var(--gruvbox-dark4);
+  padding-bottom: 0.5rem;
+}
+
+h2 {
+  font-size: 1.5rem;
+  border-bottom: 1px solid var(--gruvbox-dark4);
+  padding-bottom: 0.3rem;
+}
+
+h3 {
+  font-size: 1.3rem;
+}
+
+a {
+  color: var(--gruvbox-green);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Code blocks */
+pre,
+code {
+  font-family: "Fira Mono", monospace;
+  background-color: var(--gruvbox-dark1);
+  border-radius: 0;
+  padding: 0.2rem 0.4rem;
+  color: var(--gruvbox-light2);
+  font-size: 0.9rem;
+}
+
+pre {
+  padding: 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--gruvbox-dark2);
+  line-height: 1.4;
+}
+
+pre code {
+  padding: 0;
+  background: none;
+}
+
+/* Syntax highlighting */
+
+.highlight-chroma {
+  background-color: var(--gruvbox-dark1);
+  color: var(--gruvbox-light1);
+}
+
+.highlight-err {
+  /* Error */
+  color: var(--gruvbox-light0);
+  background-color: var(--gruvbox-red);
+}
+
+.highlight-k,   /* Keyword */
+.highlight-kc,  /* KeywordConstant */
+.highlight-kd,  /* KeywordDeclaration */
+.highlight-kn,  /* KeywordNamespace */
+.highlight-kp,  /* KeywordPseudo */
+.highlight-kr,  /* KeywordReserved */
+.highlight-ow   /* OperatorWord */ {
+  color: var(--gruvbox-red);
+}
+
+.highlight-kt {
+  /* KeywordType */
+  color: var(--gruvbox-yellow);
+}
+
+.highlight-n,  /* Name */
+.highlight-nv, /* NameVariable */
+.highlight-vc, /* NameVariableClass */
+.highlight-vg, /* NameVariableGlobal */
+.highlight-vi, /* NameVariableInstance */
+.highlight-vm  /* NameVariableMagic */ {
+  color: var(--gruvbox-light1);
+}
+
+.highlight-na {
+  /* NameAttribute */
+  color: var(--gruvbox-green);
+  font-weight: bold;
+}
+
+.highlight-nb {
+  /* NameBuiltin */
+  color: var(--gruvbox-yellow);
+}
+
+.highlight-bp {
+  /* NameBuiltinPseudo */
+  color: var(--gruvbox-blue);
+}
+
+.highlight-nc {
+  /* NameClass */
+  color: var(--gruvbox-yellow);
+}
+
+.highlight-no {
+  /* NameConstant */
+  color: var(--gruvbox-purple);
+}
+
+.highlight-nd {
+  /* NameDecorator */
+  color: var(--gruvbox-aqua);
+}
+
+.highlight-ni {
+  /* NameEntity */
+  color: var(--gruvbox-yellow);
+}
+
+.highlight-ne {
+  /* NameException */
+  color: var(--gruvbox-red);
+}
+
+.highlight-nf, /* NameFunction */
+.highlight-fm  /* NameFunctionMagic */ {
+  color: var(--gruvbox-green);
+}
+
+.highlight-nl {
+  /* NameLabel */
+  color: var(--gruvbox-red);
+}
+
+.highlight-nn {
+  /* NameNamespace */
+  color: var(--gruvbox-yellow);
+}
+
+.highlight-nt {
+  /* NameTag */
+  color: var(--gruvbox-red);
+}
+
+.highlight-l,  /* Literal */
+.highlight-ld  /* LiteralDate */ {
+  color: var(--gruvbox-purple);
+}
+
+/* Strings */
+.highlight-s,   /* String */
+.highlight-sa,  /* StringAffix */
+.highlight-sb,  /* StringBacktick */
+.highlight-sc,  /* StringChar */
+.highlight-dl,  /* StringDelimiter */
+.highlight-sd,  /* StringDoc */
+.highlight-s2,  /* StringDouble */
+.highlight-se,  /* StringEscape */
+.highlight-sh,  /* StringHeredoc */
+.highlight-si,  /* StringInterpol */
+.highlight-sx,  /* StringOther */
+.highlight-sr,  /* StringRegex */
+.highlight-s1   /* StringSingle */ {
+  color: var(--gruvbox-green);
+}
+
+.highlight-ss {
+  /* StringSymbol */
+  color: var(--gruvbox-aqua);
+}
+
+.highlight-m,   /* Number */
+.highlight-mb,  /* NumberBin */
+.highlight-mf,  /* NumberFloat */
+.highlight-mh,  /* NumberHex */
+.highlight-mi,  /* NumberInteger */
+.highlight-il,  /* NumberIntegerLong */
+.highlight-mo   /* NumberOct */ {
+  color: var(--gruvbox-purple);
+}
+
+.highlight-o {
+  /* Operator */
+  color: var(--gruvbox-red);
+}
+
+.highlight-p {
+  color: var(--gruvbox-light1);
+}
+
+.highlight-c,   /* Comment */
+.highlight-cm,  /* CommentMultiline */
+.highlight-c1,  /* CommentSingle */
+.highlight-cs   /* CommentSpecial */ {
+  color: var(--gruvbox-light4);
+  font-style: italic;
+}
+
+.highlight-ch, /* CommentHashbang */
+.highlight-cp, /* CommentPreproc */
+.highlight-cpf /* CommentPreprocFile */ {
+  color: var(--gruvbox-aqua);
+}
+
+.highlight-gd {
+  /* GenericDeleted */
+  color: var(--gruvbox-dark0);
+  background-color: var(--gruvbox-red);
+}
+
+.highlight-ge {
+  /* GenericEmph */
+  text-decoration: underline;
+  color: var(--gruvbox-aqua);
+}
+
+.highlight-gr {
+  /* GenericError */
+  font-weight: bold;
+  background-color: var(--gruvbox-red);
+}
+
+.highlight-gh {
+  /* GenericHeading */
+  font-weight: bold;
+  color: var(--gruvbox-green);
+}
+
+.highlight-gi {
+  /* GenericInserted */
+  color: var(--gruvbox-dark0);
+  background-color: var(--gruvbox-green);
+}
+
+.highlight-go {
+  /* GenericOutput */
+  color: var(--gruvbox-dark2);
+}
+
+.highlight-gs {
+  /* GenericStrong */
+  font-weight: bold;
+}
+
+.highlight-gu {
+  /* GenericSubheading */
+  font-weight: bold;
+  color: var(--gruvbox-green);
+}
+
+.highlight-gt {
+  /* GenericTraceback */
+  font-weight: bold;
+  background-color: var(--gruvbox-red);
+}
+
+/* Line numbers */
+.highlight-ln {
+  color: var(--gruvbox-dark4);
+  -webkit-user-select: none; /* Safari */
+  -moz-user-select: none; /* Firefox */
+  -ms-user-select: none; /* IE10+/Edge */
+  user-select: none; /* Standard */
+}
+
+/* Lists */
+ul,
+ol {
+  padding-left: 1.5rem;
+}
+
+li {
+  margin-bottom: 0.5rem;
+}
+
+/* Blockquotes */
+blockquote {
+  border-left: 3px solid var(--gruvbox-dark4);
+  margin: 1.5rem 0;
+  padding-left: 1rem;
+  color: var(--gruvbox-light3);
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--gruvbox-dark2);
+}
+
+th {
+  background-color: var(--gruvbox-dark1);
+  color: var(--gruvbox-light0);
+}
+
+/* Images */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+figure {
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+figcaption {
+  font-size: 0.9rem;
+  color: var(--gruvbox-light4);
+  margin-top: 0.5rem;
+}
+
+/* Custom blocks (callouts) */
+.custom-block {
+  border-left: 3px solid;
+  padding: 1rem;
+  margin: 1.5rem 0;
+  background-color: var(--gruvbox-dark1);
+}
+
+.custom-block.info {
+  border-left-color: var(--gruvbox-blue);
+}
+
+.custom-block.tip {
+  border-left-color: var(--gruvbox-green);
+}
+
+.custom-block.important {
+  border-left-color: var(--gruvbox-yellow);
+}
+
+.custom-block.warning {
+  border-left-color: var(--gruvbox-orange);
+}
+
+.custom-block.danger {
+  border-left-color: var(--gruvbox-red);
+}
+
+.custom-block-title {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.custom-block-title svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Anchors (permalink) */
+.anchor {
+  color: var(--gruvbox-dark4);
+  text-decoration: none;
+  margin-left: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.anchor:hover {
+  color: var(--gruvbox-light4);
+}
+
+/* Fenced blocks */
+.blue {
+  background-color: var(--gruvbox-dark1);
+  border-left: 3px solid var(--gruvbox-blue);
+  padding: 1rem;
+  margin: 1.5rem 0;
 }
 
 .red {
-  background-color: red;
+  background-color: var(--gruvbox-dark1);
+  border-left: 3px solid var(--gruvbox-red);
+  padding: 1rem;
+  margin: 1.5rem 0;
+}
+
+/* Footer */
+footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--gruvbox-dark2);
+  color: var(--gruvbox-light4);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* Responsiveness */
+@media (max-width: 600px) {
+  .container {
+    padding: 0 0.5rem;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.3rem;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+  }
+
+  body {
+    font-size: 14px;
+  }
 }

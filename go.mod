@@ -3,6 +3,7 @@ module github.com/zeozeozeo/trash
 go 1.24.4
 
 require (
+	github.com/alecthomas/chroma/v2 v2.19.0
 	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/yuin/goldmark-emoji v1.0.6
@@ -13,7 +14,6 @@ require (
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/PuerkitoBio/goquery v1.10.3 // indirect
-	github.com/alecthomas/chroma/v2 v2.19.0 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/chromedp/cdproto v0.0.0-20230220211738-2b1ec77315c9 // indirect
 	github.com/chromedp/chromedp v0.9.1 // indirect

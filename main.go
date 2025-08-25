@@ -18,6 +18,7 @@ import (
 	_ "embed"
 
 	d2 "github.com/FurqanSoftware/goldmark-d2"
+	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/websocket"
@@ -273,7 +274,7 @@ type Page struct {
 	Markdown string
 	// Content is the final HTML content after all processing.
 	Content template.HTML
-	// Metadata is the parsed YAML front matter.
+	// Metadata is the parsed YAML/TOML front matter.
 	Metadata map[string]any
 }
 
@@ -300,8 +301,13 @@ func maybeInitMermaidCDP() {
 	}
 }
 
+func ptr[T any](v T) *T {
+	return &v
+}
+
 func buildCmd(isServing, copyStatic bool) {
 	if !checkAllDirsExist(pagesDir, templateDir) {
+		printerr("No project files in current directory\n")
 		usage()
 		os.Exit(1)
 	}
@@ -427,14 +433,22 @@ func buildCmd(isServing, copyStatic bool) {
 			emoji.Emoji,
 			treeblood.MathML(),
 			&frontmatter.Extender{},
-			&d2.Extender{Sketch: true},
+			&d2.Extender{Sketch: true, ThemeID: ptr(int64(200))}, // see https://d2lang.com/tour/themes/
 			&mermaid.Extender{
 				Compiler: mermaidCompiler,
 			},
 			&pikchr.Extender{},
 			enclave.New(&enclaveCore.Config{}),
 			enclaveCallout.New(),
-			highlighting.Highlighting,
+			highlighting.NewHighlighting(
+				highlighting.WithFormatOptions(
+					chromahtml.ClassPrefix("highlight-"),
+					chromahtml.WithClasses(true),
+					chromahtml.WithAllClasses(true),
+					chromahtml.LineNumbersInTable(false), // TODO
+					chromahtml.WithLineNumbers(false),    // TODO
+				),
+			),
 			&fences.Extender{},
 			figure.Figure,
 			&anchor.Extender{},
