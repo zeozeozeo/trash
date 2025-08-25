@@ -14,9 +14,10 @@ Trash - a stupid, simple website compiler.
 - Painless embedding of YouTube videos, HTML5 audio, and more in native Markdown
 - Syntax highlighting
 - Various Markdown extensions such as image `<figure>`s, image sizing, callouts, Pandoc-style fences, `:emojis:`, and more
-- YAML `---` and TOML `+++` frontmatter parsing support
+- YAML and TOML frontmatter parsing support
 - Automatic anchor placement
-- Under 700 lines of Go code [in a single file](./main.go)
+- Automatially minifies output HTML, CSS, JS, JSON, SVG and XML for smallest builds
+- Under 800 lines of Go code [in a single file](./main.go)
 
 ## Installation
 

@@ -6,9 +6,11 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -28,6 +30,13 @@ import (
 	enclaveCallout "github.com/quailyquaily/goldmark-enclave/callout"
 	enclaveCore "github.com/quailyquaily/goldmark-enclave/core"
 	fences "github.com/stefanfritsch/goldmark-fences"
+	"github.com/tdewolff/minify/v2"
+	"github.com/tdewolff/minify/v2/css"
+	minifyHtml "github.com/tdewolff/minify/v2/html"
+	"github.com/tdewolff/minify/v2/js"
+	"github.com/tdewolff/minify/v2/json"
+	"github.com/tdewolff/minify/v2/svg"
+	"github.com/tdewolff/minify/v2/xml"
 	treeblood "github.com/wyatt915/goldmark-treeblood"
 	"github.com/yuin/goldmark"
 	emoji "github.com/yuin/goldmark-emoji"
@@ -305,6 +314,46 @@ func ptr[T any](v T) *T {
 	return &v
 }
 
+func newMinifier() *minify.M {
+	m := minify.New()
+	m.AddFunc("text/css", css.Minify)
+	m.AddFunc("text/html", minifyHtml.Minify)
+	m.AddFunc("image/svg+xml", svg.Minify)
+	m.AddFuncRegexp(regexp.MustCompile("^(application|text)/(x-)?(java|ecma)script$"), js.Minify)
+	m.AddFuncRegexp(regexp.MustCompile("[/+]json$"), json.Minify)
+	m.AddFuncRegexp(regexp.MustCompile("[/+]xml$"), xml.Minify)
+
+	m.AddFunc("importmap", json.Minify)
+	m.AddFunc("speculationrules", json.Minify)
+
+	aspMinifier := &minifyHtml.Minifier{}
+	aspMinifier.TemplateDelims = [2]string{"<%", "%>"}
+	m.Add("text/asp", aspMinifier)
+	m.Add("text/x-ejs-template", aspMinifier)
+
+	phpMinifier := &minifyHtml.Minifier{}
+	phpMinifier.TemplateDelims = [2]string{"<?", "?>"} // also handles <?php
+	m.Add("application/x-httpd-php", phpMinifier)
+
+	tmplMinifier := &minifyHtml.Minifier{}
+	tmplMinifier.TemplateDelims = [2]string{"{{", "}}"}
+	m.Add("text/x-go-template", tmplMinifier)
+	m.Add("text/x-mustache-template", tmplMinifier)
+	m.Add("text/x-handlebars-template", tmplMinifier)
+
+	return m
+}
+
+func minifyHtmlBuf(m *minify.M, html bytes.Buffer) bytes.Buffer {
+	var buf bytes.Buffer
+	err := m.Minify("text/html", &buf, &html)
+	if err != nil {
+		printerr("Failed to minify HTML: %v", err)
+		return html
+	}
+	return buf
+}
+
 func buildCmd(isServing, copyStatic bool) {
 	if !checkAllDirsExist(pagesDir, templateDir) {
 		printerr("No project files in current directory\n")
@@ -462,6 +511,7 @@ func buildCmd(isServing, copyStatic bool) {
 	}
 
 	// pass 3: process markdown and render HTML
+	m := newMinifier()
 	for _, page := range allPages {
 		tmpl, err := text_template.New(page.SourcePath).Funcs(funcMap).Parse(page.Markdown)
 		if err != nil {
@@ -492,6 +542,12 @@ func buildCmd(isServing, copyStatic bool) {
 			continue
 		}
 
+		var finalBuf bytes.Buffer
+		if err := layout.Execute(&finalBuf, TemplateData{Site: site, Page: page, IsServing: isServing}); err != nil {
+			printerr("Failed to render final HTML for %s: %v", page.SourcePath, err)
+			continue
+		}
+
 		file, err := os.Create(outputPath)
 		if err != nil {
 			printerr("Failed to create file %s: %v", outputPath, err)
@@ -499,10 +555,8 @@ func buildCmd(isServing, copyStatic bool) {
 		}
 		defer file.Close()
 
-		if err := layout.Execute(file, TemplateData{Site: site, Page: page, IsServing: isServing}); err != nil {
-			printerr("Failed to render final HTML for %s: %v", page.SourcePath, err)
-			continue
-		}
+		minifiedBuf := minifyHtmlBuf(m, finalBuf)
+		io.Copy(file, &minifiedBuf)
 	}
 
 	// copy static files

@@ -6,6 +6,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.19.0
 	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.9.0
+	github.com/tdewolff/minify/v2 v2.24.0
 	github.com/yuin/goldmark-emoji v1.0.6
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	go.abhg.dev/goldmark/frontmatter v0.2.0
@@ -34,6 +35,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mazznoer/csscolorparser v0.1.6 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/tdewolff/parse/v2 v2.8.3 // indirect
 	github.com/wyatt915/treeblood v0.1.13 // indirect
 	golang.org/x/exp v0.0.0-20250718183923-645b1fa84792 // indirect
 	golang.org/x/image v0.29.0 // indirect
