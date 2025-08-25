@@ -1,0 +1,6 @@
+# The structure of this config file is not forced upon us, it is just useful to
+# have the permalink/other configuration stored somewhere so we can access it
+# in templates (see e.g. pages/rss.xml)
+
+[site]
+url = "https://example.com/"

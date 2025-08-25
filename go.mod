@@ -53,6 +53,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/jchenry/goldmark-pikchr v0.1.0
 	github.com/mangoumbrella/goldmark-figure v1.3.0
+	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/quailyquaily/goldmark-enclave v0.1.9
 	github.com/stefanfritsch/goldmark-fences v1.0.0
 	github.com/wyatt915/goldmark-treeblood v0.0.0-20250703044443-8653cf501e18

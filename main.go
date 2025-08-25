@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -27,6 +28,7 @@ import (
 	"github.com/gorilla/websocket"
 	pikchr "github.com/jchenry/goldmark-pikchr"
 	figure "github.com/mangoumbrella/goldmark-figure"
+	"github.com/pelletier/go-toml/v2"
 	enclave "github.com/quailyquaily/goldmark-enclave"
 	enclaveCallout "github.com/quailyquaily/goldmark-enclave/callout"
 	enclaveCore "github.com/quailyquaily/goldmark-enclave/core"
@@ -73,6 +75,13 @@ func usage() {
 
 func printerr(format string, a ...any) {
 	fmt.Print(color.HiRedString("error"))
+	fmt.Print(": ")
+	fmt.Printf(format, a...)
+	fmt.Print("\n")
+}
+
+func printwarn(format string, a ...any) {
+	fmt.Print(color.YellowString("warn"))
 	fmt.Print(": ")
 	fmt.Printf(format, a...)
 	fmt.Print("\n")
@@ -182,10 +191,11 @@ func makedirs(dirs ...string) {
 // -- init --
 
 const (
-	pagesDir    = "pages"
-	staticDir   = "static"
-	templateDir = "templates"
-	outputDir   = "out"
+	pagesDir            = "pages"
+	staticDir           = "static"
+	templateDir         = "templates"
+	outputDir           = "out"
+	trashConfigFilename = "Trash.toml"
 )
 
 func initCmd() {
@@ -267,7 +277,12 @@ date: "2025-08-24"
 
 Hello, world! This is my first post.`, pagesDir, "posts", "first-post.md")
 
+	// .gitignore
 	writefile("/out", ".gitignore")
+
+	// Trash.toml
+	writefile(`[site]
+url = "https://example.com/" # Change this`, trashConfigFilename)
 
 	programName := getProgramName()
 	fmt.Printf("You can now do %s to build your site, %s to rebuild on file changes, or %s to start a server with live reloading.\n", color.HiBlueString(programName), color.HiBlueString(programName+" watch"), color.HiBlueString(programName+" serve"))
@@ -278,10 +293,12 @@ Hello, world! This is my first post.`, pagesDir, "posts", "first-post.md")
 type Page struct {
 	// SourcePath is the path to the original .md file relative to the project root.
 	SourcePath string
+	// IsMarkdown is true when the file is a markdown file.
+	IsMarkdown bool
 	// Permalink is the final URL path for the page.
 	Permalink string
-	// Markdown is the raw markdown content, without front matter.
-	Markdown string
+	// RawContent is the raw file content.
+	RawContent string
 	// Content is the final HTML content after all processing.
 	Content template.HTML
 	// Metadata is the parsed YAML/TOML front matter.
@@ -295,6 +312,7 @@ type Site struct {
 type TemplateData struct {
 	Site      Site
 	Page      *Page
+	Config    map[string]any
 	IsServing bool
 }
 
@@ -398,85 +416,30 @@ func minifyStaticFile(m *minify.M, srcPath, dstPath string, info os.FileInfo) er
 	return os.Chmod(dstPath, info.Mode())
 }
 
-func buildCmd(isServing, copyStatic bool) {
-	if !checkAllDirsExist(pagesDir, templateDir) {
-		printerr("No project files in current directory\n")
-		usage()
-		os.Exit(1)
-	}
+var timeFormats = map[string]string{
+	"Layout":      time.Layout,
+	"ANSIC":       time.ANSIC,
+	"UnixDate":    time.UnixDate,
+	"RubyDate":    time.RubyDate,
+	"RFC822":      time.RFC822,
+	"RFC822Z":     time.RFC822Z,
+	"RFC850":      time.RFC850,
+	"RFC1123":     time.RFC1123,
+	"RFC1123Z":    time.RFC1123Z,
+	"RFC3339":     time.RFC3339,
+	"RFC3339Nano": time.RFC3339Nano,
+	"Kitchen":     time.Kitchen,
+	"Stamp":       time.Stamp,
+	"StampMilli":  time.StampMilli,
+	"StampMicro":  time.StampMicro,
+	"StampNano":   time.StampNano,
+	"DateTime":    time.DateTime,
+	"DateOnly":    time.DateOnly,
+	"TimeOnly":    time.TimeOnly,
+}
 
-	if !isServing {
-		_ = os.RemoveAll(outputDir)
-	}
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		printerr("Failed to create output directory: %v", err)
-		os.Exit(1)
-	}
-
-	start := time.Now()
-
-	// pass 1: discover markdown files
-	var allPages []*Page
-	var hasMermaid bool
-	err := filepath.Walk(pagesDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() || !strings.HasSuffix(path, ".md") {
-			return nil
-		}
-
-		fileContent, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("failed to read %s: %w", path, err)
-		}
-
-		page := &Page{
-			SourcePath: path,
-			Metadata:   make(map[string]any),
-			Markdown:   string(fileContent),
-		}
-
-		hasMermaid = hasMermaid || strings.Contains(page.Markdown, "```mermaid")
-
-		// generate permalink
-		relPath, _ := filepath.Rel(pagesDir, path)
-		page.Permalink = "/" + strings.TrimSuffix(filepath.ToSlash(relPath), ".md") + ".html"
-		if filepath.Base(relPath) == "index.md" {
-			dir := filepath.ToSlash(filepath.Dir(relPath))
-			if dir == "." {
-				dir = ""
-			}
-			page.Permalink = "/" + dir + "/"
-		}
-
-		allPages = append(allPages, page)
-		return nil
-	})
-	if err != nil {
-		printerr("Failed to walk pages directory: %v", err)
-		os.Exit(1)
-	}
-
-	site := Site{Pages: allPages}
-
-	// pass 2: parse all frontmatter
-	{
-		mdFrontmatter := goldmark.New(
-			goldmark.WithExtensions(&frontmatter.Extender{Mode: frontmatter.SetMetadata}),
-		)
-		for _, page := range allPages {
-			root := mdFrontmatter.Parser().Parse(text.NewReader([]byte(page.Markdown)))
-			doc := root.OwnerDocument()
-			page.Metadata = doc.Meta()
-
-			if _, ok := page.Metadata["title"]; !ok {
-				page.Metadata["title"] = "Untitled"
-			}
-		}
-	}
-
-	funcMap := text_template.FuncMap{
+func stdFuncMap(allPages []*Page) text_template.FuncMap {
+	return text_template.FuncMap{
 		"readDir": func(dir string) []*Page {
 			var results []*Page
 			for _, p := range allPages {
@@ -487,6 +450,7 @@ func buildCmd(isServing, copyStatic bool) {
 			}
 			return results
 		},
+
 		"sortBy": func(key string, order string, pages []*Page) []*Page {
 			sort.SliceStable(pages, func(i, j int) bool {
 				valI, okI := pages[i].Metadata[key]
@@ -508,6 +472,159 @@ func buildCmd(isServing, copyStatic bool) {
 			})
 			return pages
 		},
+
+		"formatDate": func(format string, v any) string {
+			var t time.Time
+			var err error
+
+			switch val := v.(type) {
+			case time.Time:
+				t = val
+			case string:
+				for _, layout := range timeFormats {
+					t, err = time.Parse(layout, val)
+					if err == nil {
+						break
+					}
+				}
+			default:
+				return fmt.Sprintf("%v", v) // IDK the type, return the original
+			}
+
+			if err != nil {
+				return fmt.Sprintf("%v", v)
+			}
+
+			realFormat, ok := timeFormats[format]
+			if !ok {
+				realFormat = format
+			}
+
+			return t.UTC().Format(realFormat)
+		},
+
+		"now": func() time.Time {
+			return time.Now().UTC()
+		},
+
+		"concatURL": func(base string, elements ...string) string {
+			u, err := url.Parse(base)
+			if err != nil {
+				allSegments := make([]string, 1, 1+len(elements))
+				allSegments[0] = base
+				allSegments = append(allSegments, elements...)
+				return strings.Join(allSegments, "/")
+			}
+			u = u.JoinPath(elements...)
+			return u.String()
+		},
+	}
+}
+
+func buildCmd(isServing, copyStatic bool) {
+	if !checkAllDirsExist(pagesDir, templateDir) {
+		printerr("No project files in current directory\n")
+		usage()
+		os.Exit(1)
+	}
+
+	if !isServing {
+		_ = os.RemoveAll(outputDir)
+	}
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		printerr("Failed to create output directory: %v", err)
+		os.Exit(1)
+	}
+
+	start := time.Now()
+
+	// parse config
+	var cfg map[string]any
+	{
+		cfgFile, err := os.Open(trashConfigFilename)
+		if err == nil {
+			defer cfgFile.Close()
+			if err := toml.NewDecoder(cfgFile).Decode(&cfg); err != nil {
+				printerr("Error parsing config file: %v", err)
+				os.Exit(1)
+			}
+		} else {
+			printwarn("No `%s` config file found (run %s again)", trashConfigFilename, color.HiBlueString(getProgramName()+" init"))
+		}
+	}
+
+	// pass 1: discover markdown files
+	var allPages []*Page
+	var hasMermaid bool
+	err := filepath.Walk(pagesDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		fileContent, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %w", path, err)
+		}
+
+		page := &Page{
+			SourcePath: path,
+			IsMarkdown: strings.HasSuffix(path, ".md"),
+			Metadata:   make(map[string]any),
+			RawContent: string(fileContent),
+		}
+
+		if _, ok := page.Metadata["title"]; !ok && page.IsMarkdown {
+			page.Metadata["title"] = "Untitled"
+		}
+		hasMermaid = hasMermaid || strings.Contains(page.RawContent, "```mermaid")
+
+		// generate permalink
+		relPath, _ := filepath.Rel(pagesDir, path)
+		ext := filepath.Ext(relPath)
+		outPath := strings.TrimSuffix(relPath, ext)
+
+		if page.IsMarkdown {
+			if filepath.Base(relPath) == "index.md" {
+				dir := filepath.ToSlash(filepath.Dir(relPath))
+				if dir == "." {
+					dir = ""
+				}
+				page.Permalink = "/" + dir + "/"
+			} else {
+				page.Permalink = "/" + filepath.ToSlash(outPath) + ".html"
+			}
+		} else {
+			// for non-markdown files, permalink is just the path
+			page.Permalink = "/" + filepath.ToSlash(relPath)
+		}
+
+		allPages = append(allPages, page)
+		return nil
+	})
+	if err != nil {
+		printerr("Failed to walk pages directory: %v", err)
+		os.Exit(1)
+	}
+
+	site := Site{Pages: allPages}
+
+	// pass 2: parse all frontmatter
+	{
+		mdFrontmatter := goldmark.New(
+			goldmark.WithExtensions(&frontmatter.Extender{Mode: frontmatter.SetMetadata}),
+		)
+		for _, page := range allPages {
+			root := mdFrontmatter.Parser().Parse(text.NewReader([]byte(page.RawContent)))
+			doc := root.OwnerDocument()
+			page.Metadata = doc.Meta()
+
+			if _, ok := page.Metadata["title"]; !ok {
+				page.Metadata["title"] = "Untitled"
+			}
+		}
 	}
 
 	if hasMermaid {
@@ -560,38 +677,61 @@ func buildCmd(isServing, copyStatic bool) {
 	// pass 3: process markdown and render HTML
 	m := newMinifier()
 	for _, page := range allPages {
-		tmpl, err := text_template.New(page.SourcePath).Funcs(funcMap).Parse(page.Markdown)
+		tmpl, err := text_template.New(page.SourcePath).Funcs(stdFuncMap(allPages)).Parse(page.RawContent)
 		if err != nil {
 			printerr("Failed to parse markdown template for %s: %v", page.SourcePath, err)
 			continue
 		}
 
-		var processedMd bytes.Buffer
-		if err := tmpl.Execute(&processedMd, TemplateData{Site: site, Page: page}); err != nil {
+		var processedContent bytes.Buffer
+		templateData := TemplateData{Site: site, Page: page, Config: cfg, IsServing: isServing}
+		if err := tmpl.Execute(&processedContent, templateData); err != nil {
 			printerr("Failed to execute markdown template for %s: %v", page.SourcePath, err)
 			continue
 		}
 
-		var finalHtml bytes.Buffer
-		if err := mdContent.Convert(processedMd.Bytes(), &finalHtml); err != nil {
-			printerr("Failed to convert markdown for %s: %v", page.SourcePath, err)
-			continue
+		var finalContent bytes.Buffer
+		if page.IsMarkdown { // if it's markdown, render to html
+			if err := mdContent.Convert(processedContent.Bytes(), &finalContent); err != nil {
+				printerr("Failed to convert markdown for %s: %v", page.SourcePath, err)
+				continue
+			}
+			page.Content = template.HTML(finalContent.String())
+		} else {
+			finalContent = processedContent
 		}
-		page.Content = template.HTML(finalHtml.String())
 
 		outputPath := filepath.Join(outputDir, strings.TrimPrefix(page.Permalink, "/"))
 		if strings.HasSuffix(page.Permalink, "/") {
 			outputPath = filepath.Join(outputPath, "index.html")
 		}
 
-		if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
-			printerr("Failed to create directory for %s: %v", outputPath, err)
-			continue
+		// optionally, wrap in a layout
+		var finalBuf bytes.Buffer
+		layoutTmpl := layout // default
+		useLayout := true
+		if layoutName, ok := page.Metadata["layout"].(string); ok {
+			if layoutName == "none" {
+				useLayout = false
+			} else {
+				// TODO: load a different layout?
+			}
 		}
 
-		var finalBuf bytes.Buffer
-		if err := layout.Execute(&finalBuf, TemplateData{Site: site, Page: page, IsServing: isServing}); err != nil {
-			printerr("Failed to render final HTML for %s: %v", page.SourcePath, err)
+		// only use layout for markdown files unless specified otherwise
+		if useLayout && page.IsMarkdown {
+			templateData.Page.Content = template.HTML(finalContent.String())
+			if err := layoutTmpl.Execute(&finalBuf, templateData); err != nil {
+				printerr("Failed to render layout for %s: %v", page.SourcePath, err)
+				continue
+			}
+		} else {
+			finalBuf = finalContent
+		}
+
+		// write the final file
+		if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+			printerr("Failed to create directory for %s: %v", outputPath, err)
 			continue
 		}
 
@@ -602,7 +742,14 @@ func buildCmd(isServing, copyStatic bool) {
 		}
 		defer file.Close()
 
-		minifiedBuf := minifyBuf(m, finalBuf, "text/html")
+		// minify based on file extension
+		var minifiedBuf bytes.Buffer
+		ext := filepath.Ext(outputPath)
+		if mime, ok := minifyTypes[ext]; ok {
+			minifiedBuf = minifyBuf(m, finalBuf, mime)
+		} else {
+			minifiedBuf = finalBuf
+		}
 		io.Copy(file, &minifiedBuf)
 	}
 
@@ -636,9 +783,9 @@ func watchAndRebuild(onRebuild func()) {
 	}
 	defer watcher.Close()
 
-	for _, path := range []string{pagesDir, staticDir, templateDir} {
+	for _, path := range []string{pagesDir, staticDir, templateDir, trashConfigFilename} {
 		filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-			if info.IsDir() {
+			if info.IsDir() || filepath.Base(path) == trashConfigFilename {
 				if err := watcher.Add(path); err != nil {
 					printerr("Failed to watch directory %s: %v", path, err)
 				}

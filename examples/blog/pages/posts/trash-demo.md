@@ -1,7 +1,10 @@
 ---
 title: "Trash Demo"
+description: "A demo of the Trash website compiler."
 date: "2025-08-24"
 ---
+
+<!-- This is how you do comments, btw. -->
 
 Hello, world! This is a demo of the Trash website compiler. :wastebasket: <- `:wastebasket:`
 
@@ -148,7 +151,7 @@ Rarity
   </div>
 </div>
 
-Note how we're appending `?w=100px` after the image URL and Trash automatically knows to make it 100px, even though the host doesn't support it:
+Notice how we're appending `?w=100px` after the image URL and Trash automatically knows to make it 100px, even though the host doesn't support it:
 
 ```markdown
 ![](https://your-image.com/image.png?w=100px)

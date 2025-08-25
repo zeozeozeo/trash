@@ -1,0 +1,32 @@
+<!--
+An example RSS template to use with your blog.
+All of the comments, including this one, will be compiled out when you run `trash build`.
+-->
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+    <!-- saving the root template context into the $ variable so we can use it inside the `range` -->
+    {{- $ := . }}
+
+    <title>Trash Blog</title>
+    <link>{{ $.Config.site.url }}</link> <!-- this is from the parsed `Trash.toml` in examples/blog -->
+    <description>A blog about the Trash website compiler.</description>
+    <language>en-us</language>
+    <lastBuildDate>{{ now | formatDate "RFC1123Z" }}</lastBuildDate> <!-- this is how you get the current date & format dates -->
+    <atom:link href="{{ concatURL $.Config.site.url "/rss.xml" }}" rel="self" type="application/rss+xml" />
+
+    {{- $posts := readDir "posts" | sortBy "date" "desc" }}
+    {{- range $posts }}
+    <item>
+        <title>{{ .Metadata.title }}</title>
+
+        <!-- this is how we concatenate the permalink we set in Trash.toml with the post's permalink -->
+        <link>{{ concatURL $.Config.site.url .Permalink }}</link>
+
+        <pubDate>{{ .Metadata.date | formatDate "RFC1123Z" }}</pubDate>
+        <guid isPermaLink="true">{{ concatURL $.Config.site.url .Permalink }}</guid>
+        <description><![CDATA[{{ .Metadata.description }}]]></description> <!-- this is from the frontmatter in pages/posts/*.md -->
+    </item>
+    {{- end }}
+</channel>
+</rss>
