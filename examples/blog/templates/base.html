@@ -14,7 +14,7 @@
         </main>
     </div>
 
-	{{ if .IsServing }}
+    {{ if .IsServing }}
     <script>
         const socket = new WebSocket("ws://" + window.location.host + "/ws");
         socket.addEventListener("message", (event) => {

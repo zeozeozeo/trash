@@ -204,7 +204,7 @@ func initCmd() {
         </main>
     </div>
 
-	{{ if .IsServing }}
+    {{ if .IsServing }}
     <script>
         const socket = new WebSocket("ws://" + window.location.host + "/ws");
         socket.addEventListener("message", (event) => {
@@ -222,14 +222,14 @@ func initCmd() {
 
 	// static/style.css
 	writefile(`body {
-	font-family: sans-serif;
-	color: #333;
+  font-family: sans-serif;
+  color: #333;
 }
 
 .container {
-	max-width: 800px;
-	margin: 2rem auto;
-	padding: 0 1rem;
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 0 1rem;
 }`, "static", "style.css")
 
 	// pages/posts/first-post.md

@@ -17,7 +17,7 @@ Watching for changes...
 
 All of the following elements can be compiled fully on the server side, serving **zero client-side JS**!
 
-### Math
+### $LaTeX$ expressions
 
 Given the radius $r$ of a circle, the area $A$ is:
 
