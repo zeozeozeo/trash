@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"maps"
 	"math/rand/v2"
 	"net/http"
 	"net/url"
@@ -194,6 +195,39 @@ func makedirs(dirs ...string) {
 	}
 }
 
+func queryMap(m map[string]any, path ...string) (any, bool) {
+	for i, key := range path {
+		if m == nil {
+			return nil, false
+		}
+		if i == len(path)-1 {
+			val, exists := m[key]
+			return val, exists
+		}
+		if next, ok := m[key]; ok {
+			if nextMap, ok := next.(map[string]any); ok {
+				m = nextMap
+			} else {
+				return nil, false
+			}
+		} else {
+			return nil, false
+		}
+	}
+	return nil, false
+}
+
+func queryMapOrDefault[T any](m map[string]any, fallback T, path ...string) T {
+	val, exists := queryMap(m, path...)
+	if !exists {
+		return fallback
+	}
+	if converted, ok := val.(T); ok {
+		return converted
+	}
+	return fallback
+}
+
 // -- init --
 
 const (
@@ -333,10 +367,6 @@ func initMermaidCDP() {
 	if err != nil {
 		printerr("Failed to initialize Mermaid with CDP: %v; falling back to clientside JS", err)
 	}
-}
-
-func ptr[T any](v T) *T {
-	return &v
 }
 
 func newMinifier() *minify.M {
@@ -567,6 +597,13 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 			}
 			return fmt.Sprintf("%d %s", count, plural)
 		},
+		"markdownify": func(s string) (string, error) {
+			var buf bytes.Buffer
+			if err := ctx.MarkdownParser.Convert([]byte(s), &buf); err != nil {
+				return "", err
+			}
+			return buf.String(), nil
+		},
 
 		// math utilities
 		"add":      func(a, b int) int { return a + b },
@@ -668,9 +705,9 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 		// example: {{ $featured := where .Site.Pages "featured" true }}
 		"where": func(pages []*Page, key string, value any) []*Page {
 			var result []*Page
-			// TODO: use reflection for multilevel queries?
+			path := strings.Split(key, ".")
 			for _, p := range pages {
-				if val, ok := p.Metadata[key]; ok && val == value {
+				if val, exists := queryMap(p.Metadata, path...); exists && val == value {
 					result = append(result, p)
 				}
 			}
@@ -679,15 +716,32 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 		// example: {{ $postsByYear := .Site.Pages | groupBy "year" }}
 		"groupBy": func(key string, pages []*Page) map[string][]*Page {
 			groups := make(map[string][]*Page)
+			path := strings.Split(key, ".")
 			for _, p := range pages {
-				val, ok := p.Metadata[key]
-				if !ok {
+				val, exists := queryMap(p.Metadata, path...)
+				if !exists {
 					continue
 				}
 				groupKey := fmt.Sprintf("%v", val)
 				groups[groupKey] = append(groups[groupKey], p)
 			}
 			return groups
+		},
+		// example: {{ $authors := .Site.Pages | select "parentkey.author" }}
+		"select": func(key string, pages []*Page) []any {
+			var result []any
+			path := strings.Split(key, ".")
+			for _, p := range pages {
+				if val, exists := queryMap(p.Metadata, path...); exists {
+					result = append(result, val)
+				}
+			}
+			return result
+		},
+		"has": func(key string, page *Page) bool {
+			path := strings.Split(key, ".")
+			_, exists := queryMap(page.Metadata, path...)
+			return exists
 		},
 		"dict": func(values ...any) (map[string]any, error) {
 			if len(values)%2 != 0 {
@@ -702,15 +756,6 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 				m[key] = values[i+1]
 			}
 			return m, nil
-		},
-
-		// text utilities
-		"markdownify": func(s string) (template.HTML, error) {
-			var buf bytes.Buffer
-			if err := ctx.MarkdownParser.Convert([]byte(s), &buf); err != nil {
-				return "", err
-			}
-			return template.HTML(buf.String()), nil
 		},
 
 		// print & formatting utilities
@@ -731,9 +776,7 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 			}
 			if len(data) > 0 {
 				if userEnv, ok := data[0].(map[string]any); ok {
-					for k, v := range userEnv {
-						env[k] = v
-					}
+					maps.Copy(env, userEnv)
 				}
 			}
 
@@ -903,7 +946,30 @@ func (ctx *buildContext) discoverAndParsePages() error {
 
 func (ctx *buildContext) compileAndRenderPage(page *Page) error {
 	if ctx.MarkdownParser == nil {
-		ctx.MarkdownParser = createMarkdownParser()
+		var anchorText *string
+		if text, exists := queryMap(ctx.Config, "anchor", "text"); exists {
+			if str, ok := text.(string); ok {
+				anchorText = &str
+			} else {
+				anchorText = nil
+			}
+		} else {
+			anchorText = nil
+		}
+
+		anchorPosition := anchor.After
+		if queryMapOrDefault(ctx.Config, "", "anchor", "position") == "before" {
+			anchorPosition = anchor.Before
+		}
+
+		ctx.MarkdownParser = createMarkdownParser(
+			queryMapOrDefault(ctx.Config, "", "mermaid", "theme"),
+			queryMapOrDefault(ctx.Config, true, "d2", "sketch"),
+			queryMapOrDefault[int64](ctx.Config, -1, "d2", "theme"),
+			queryMapOrDefault(ctx.Config, false, "pikchr", "dark"),
+			anchorText,
+			anchorPosition,
+		)
 	}
 
 	tmpl, err := text_template.New(page.SourcePath).Funcs(ctx.stdFuncMap(ctx.Site.Pages)).Parse(page.RawContent)
@@ -1018,7 +1084,26 @@ func parseConfig() map[string]any {
 	return cfg
 }
 
-func createMarkdownParser() goldmark.Markdown {
+type anchorTexter struct {
+	text []byte
+}
+
+func (a *anchorTexter) AnchorText(*anchor.HeaderInfo) []byte {
+	if a == nil {
+		return nil
+	}
+	return a.text
+}
+
+func createMarkdownParser(mermaidTheme string, d2Sketch bool, d2Theme int64, pikchrDarkMode bool, anchorText *string, anchorPosition anchor.Position) goldmark.Markdown {
+	var d2ThemeId *int64
+	if d2Theme >= 0 {
+		d2ThemeId = &d2Theme
+	}
+	var texter anchor.Texter
+	if anchorText != nil {
+		texter = &anchorTexter{text: []byte(*anchorText)}
+	}
 	return goldmark.New(
 		goldmark.WithRendererOptions(html.WithUnsafe()),
 		goldmark.WithParserOptions(
@@ -1034,11 +1119,12 @@ func createMarkdownParser() goldmark.Markdown {
 			emoji.Emoji,
 			treeblood.MathML(),
 			&frontmatter.Extender{},
-			&d2.Extender{Sketch: true, ThemeID: ptr(int64(200))},
+			&d2.Extender{Sketch: d2Sketch, ThemeID: d2ThemeId},
 			&mermaid.Extender{
 				Compiler: mermaidCompiler,
+				Theme:    mermaidTheme,
 			},
-			&pikchr.Extender{},
+			&pikchr.Extender{DarkMode: pikchrDarkMode},
 			enclave.New(&enclaveCore.Config{}),
 			enclaveCallout.New(),
 			highlighting.NewHighlighting(
@@ -1052,7 +1138,10 @@ func createMarkdownParser() goldmark.Markdown {
 			),
 			&fences.Extender{},
 			figure.Figure,
-			&anchor.Extender{},
+			&anchor.Extender{
+				Texter:   texter,
+				Position: anchorPosition,
+			},
 		),
 	)
 }

@@ -1,6 +1,22 @@
 # The structure of this config file is not forced upon us, it is just useful to
 # have the permalink/other configuration stored somewhere so we can access it
-# in templates (see e.g. pages/rss.xml)
+# in templates (see e.g. pages/rss.xml).
 
 [site]
 url = "https://example.com/"
+
+# The below values will get picked up by the compiler, though.
+
+[mermaid]
+theme = "dark" # see available themes at https://mermaid.js.org/config/theming.html
+
+[d2]
+sketch = true # see https://d2lang.com/tour/sketch/
+theme = 200   # see available themes at https://d2lang.com/tour/themes/
+
+[pikchr]
+dark = true # change pikchr colors to assume a dark-mode theme
+
+# [anchor]
+# text = "#"          # change the ¶ character in anchors to something else
+# position = "before" # default is "after", where to place the anchor

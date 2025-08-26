@@ -12,7 +12,5 @@ Click on a blog post!
 
 {{ $posts := readDir "posts" | sortBy "date" "desc" }}
 {{- range $posts }}
-
-- [{{ .Metadata.title }}]({{ .Permalink }}) - {{ .Metadata.description }} <span style="color: var(--gruvbox-light4)">{{ .Metadata.date }}<span>
-
+- [{{ .Metadata.title }}]({{ .Permalink }}) - {{ .Metadata.description }}
 {{- end }}

@@ -21,7 +21,6 @@ This example parses the [products.csv](/products.csv) file directly in the templ
             let isFloat = value matches '^-?[0-9]+\\.[0-9]+$';
             [#, isInt ? int(value) : (isFloat ? float(value) : value)]
         });
-
         fromPairs(pairs)
     })
 ` (dict "csvData" $csvData) }}
@@ -34,6 +33,25 @@ This example parses the [products.csv](/products.csv) file directly in the templ
 {{- range $products }}
 | {{ .name }} | {{ .price }} | {{ .category }} | {{ .stock }} |
 {{- end }}
+
+```rs
+// the above is parsed with
+let lines = split(csvData, "\n");
+let header = map(split(trim(lines[0]), ","), { trim(#) });
+let dataLines = filter(lines[1:], { trim(#) != "" });
+map(dataLines, {
+    let fields = split(trim(#), ",");
+    let pairs = map(header, {
+        let value = fields[#index];
+        let isInt = value matches '^-?[0-9]+$';
+        let isFloat = value matches '^-?[0-9]+\\.[0-9]+$';
+        [#, isInt ? int(value) : (isFloat ? float(value) : value)]
+    });
+    fromPairs(pairs)
+})
+```
+
+See the [Expr documentation](https://expr-lang.org/docs/getting-started) and [language definition](https://expr-lang.org/docs/language-definition) for more about the language.
 
 ## Filtered products: electronics only
 

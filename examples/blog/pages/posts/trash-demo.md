@@ -2,9 +2,13 @@
 title: "Trash Demo"
 description: "A demo of the Trash website compiler"
 date: "2025-08-24"
+layout: base # you can specify a custom layout like this, but note that it is already `base` by default, so this is redundant
 ---
 
-<!-- This is how you do comments, btw. -->
+<!--
+The frontmatter above can also be TOML if you enclose it in `+++` instead of `---`.
+This is how you do comments in Markdown, btw. They will not appear in the compiled HTML.
+-->
 
 Hello, world! This is a demo of the Trash website compiler. :wastebasket: <- `:wastebasket:`
 
