@@ -162,7 +162,7 @@ func ask(prompt string) bool {
 		case "n", "N":
 			return false
 		default:
-			fmt.Println("enter 'y' or 'n'.")
+			fmt.Println("enter y or n.")
 		}
 	}
 }
@@ -726,7 +726,7 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 
 type buildContext struct {
 	Config         map[string]any
-	Layouts        map[string]*template.Template
+	Templates      *template.Template
 	MarkdownParser goldmark.Markdown
 	Minifier       *minify.M
 	Site           Site
@@ -756,16 +756,20 @@ func build(isServing, copyStatic bool) {
 		Minifier:  newMinifier(),
 	}
 
-	// load all layouts
-	if err := ctx.loadLayouts(); err != nil {
-		printerr("Failed to load layouts: %v", err)
+	if err := ctx.discoverAndParsePages(); err != nil {
+		printerr("Failed to discover pages: %v", err)
 		os.Exit(1)
 	}
 
-	// discover and process all pages
-	if err := ctx.discoverAndProcessPages(); err != nil {
-		printerr("Failed to process pages: %v", err)
+	if err := ctx.loadTemplates(); err != nil {
+		printerr("Failed to load templates: %v", err)
 		os.Exit(1)
+	}
+
+	for _, page := range ctx.Site.Pages {
+		if err := ctx.compileAndRenderPage(page); err != nil {
+			printerr("Failed to process page %s: %v", page.SourcePath, err)
+		}
 	}
 
 	// copy static files
@@ -778,43 +782,36 @@ func build(isServing, copyStatic bool) {
 	fmt.Printf("%s in %s.\n", color.HiGreenString("Build complete"), time.Since(start))
 }
 
-func (ctx *buildContext) loadLayouts() error {
-	ctx.Layouts = make(map[string]*template.Template)
+func (ctx *buildContext) loadTemplates() error {
+	t := template.New("").Funcs(ctx.stdFuncMap(ctx.Site.Pages))
 
-	// load base layout
-	baseLayout, err := template.ParseFiles(filepath.Join(layoutsDir, "base.html"))
-	if err != nil {
-		return fmt.Errorf("could not parse base layout template: %w", err)
-	}
-	ctx.Layouts["base"] = baseLayout
-
-	// load additional layouts
-	files, err := os.ReadDir(layoutsDir)
-	if err != nil {
-		return fmt.Errorf("could not read layouts directory: %w", err)
-	}
-
-	for _, file := range files {
-		if file.IsDir() || file.Name() == "base.html" {
-			continue
-		}
-
-		layoutPath := filepath.Join(layoutsDir, file.Name())
-		layout, err := template.ParseFiles(filepath.Join(layoutsDir, "base.html"), layoutPath)
+	var layoutFiles []string
+	err := filepath.Walk(layoutsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			printwarn("Failed to parse layout %s: %v", file.Name(), err)
-			continue
+			return err
 		}
+		if !info.IsDir() && strings.HasSuffix(path, ".html") {
+			layoutFiles = append(layoutFiles, path)
+		}
+		return nil
+	})
 
-		name := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
-		ctx.Layouts[name] = layout
+	if err != nil {
+		return fmt.Errorf("could not walk layouts directory: %w", err)
 	}
 
+	if len(layoutFiles) > 0 {
+		t, err = t.ParseFiles(layoutFiles...)
+		if err != nil {
+			return fmt.Errorf("could not parse layout files: %w", err)
+		}
+	}
+
+	ctx.Templates = t
 	return nil
 }
 
-func (ctx *buildContext) discoverAndProcessPages() error {
-	// pass 1: discover all pages in the `pages` directory, parse their frontmatter and determine permalinks
+func (ctx *buildContext) discoverAndParsePages() error {
 	var allPages []*Page
 	err := filepath.Walk(pagesDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -829,42 +826,34 @@ func (ctx *buildContext) discoverAndProcessPages() error {
 			return fmt.Errorf("failed to read %s: %w", path, err)
 		}
 
-		// parse frontmatter
 		page := &Page{
 			SourcePath: path,
 			IsMarkdown: strings.HasSuffix(path, ".md"),
 			RawContent: string(fileContent),
 			Metadata:   make(map[string]any),
 		}
-		mdFrontmatter := goldmark.New(
-			goldmark.WithExtensions(&frontmatter.Extender{Mode: frontmatter.SetMetadata}),
-		)
-		root := mdFrontmatter.Parser().Parse(text.NewReader([]byte(page.RawContent)))
-		doc := root.OwnerDocument()
-		page.Metadata = doc.Meta()
 
-		// default title
+		mdFrontmatter := goldmark.New(goldmark.WithExtensions(&frontmatter.Extender{Mode: frontmatter.SetMetadata}))
+		root := mdFrontmatter.Parser().Parse(text.NewReader([]byte(page.RawContent)))
+		page.Metadata = root.OwnerDocument().Meta()
+
 		if _, ok := page.Metadata["title"]; !ok && page.IsMarkdown {
 			page.Metadata["title"] = "Untitled"
 		}
 
-		// generate permalink
 		relPath, _ := filepath.Rel(pagesDir, path)
-		ext := filepath.Ext(relPath)
-		outPath := strings.TrimSuffix(relPath, ext)
-
 		if page.IsMarkdown {
-			if filepath.Base(relPath) == "index.md" {
+			if strings.HasSuffix(relPath, "index.md") {
 				dir := filepath.ToSlash(filepath.Dir(relPath))
 				if dir == "." {
 					dir = ""
 				}
 				page.Permalink = "/" + dir + "/"
 			} else {
+				outPath := strings.TrimSuffix(relPath, filepath.Ext(relPath))
 				page.Permalink = "/" + filepath.ToSlash(outPath) + ".html"
 			}
 		} else {
-			// for non-markdown files, the permalink is just the relative path
 			page.Permalink = "/" + filepath.ToSlash(relPath)
 		}
 
@@ -881,86 +870,71 @@ func (ctx *buildContext) discoverAndProcessPages() error {
 	}
 
 	ctx.Site.Pages = allPages
-
-	// pass 2: now that we have all pages, we can compile each one
-	for _, page := range allPages {
-		if err := ctx.compilePage(page, allPages); err != nil {
-			return fmt.Errorf("failed to process page %s: %w", page.SourcePath, err)
-		}
-	}
-
 	return nil
 }
 
-func (ctx *buildContext) compilePage(page *Page, allPages []*Page) error {
+func (ctx *buildContext) compileAndRenderPage(page *Page) error {
 	if ctx.MarkdownParser == nil {
 		ctx.MarkdownParser = createMarkdownParser()
 	}
 
-	// process template content
-	tmpl, err := text_template.New(page.SourcePath).Funcs(ctx.stdFuncMap(allPages)).Parse(page.RawContent)
+	tmpl, err := text_template.New(page.SourcePath).Funcs(ctx.stdFuncMap(ctx.Site.Pages)).Parse(page.RawContent)
 	if err != nil {
-		return fmt.Errorf("failed to parse markdown template for %s: %w", page.SourcePath, err)
+		return fmt.Errorf("failed to parse markdown template: %w", err)
 	}
 
 	var processedContent bytes.Buffer
 	templateData := TemplateData{Site: ctx.Site, Page: page, Config: ctx.Config, IsServing: ctx.IsServing}
 	if err := tmpl.Execute(&processedContent, templateData); err != nil {
-		return fmt.Errorf("failed to execute markdown template for %s: %w", page.SourcePath, err)
+		return fmt.Errorf("failed to execute markdown template: %w", err)
 	}
 
-	// convert markdown to HTML if needed
-	var finalContent bytes.Buffer
 	if page.IsMarkdown {
+		var finalContent bytes.Buffer
 		if err := ctx.MarkdownParser.Convert(processedContent.Bytes(), &finalContent); err != nil {
-			return fmt.Errorf("failed to convert markdown for %s: %w", page.SourcePath, err)
+			return fmt.Errorf("failed to convert markdown: %w", err)
 		}
 		page.Content = template.HTML(finalContent.String())
 	} else {
-		finalContent = processedContent
+		page.Content = template.HTML(processedContent.String())
 	}
 
-	// apply layout
 	outputPath := filepath.Join(outputDir, strings.TrimPrefix(page.Permalink, "/"))
 	if strings.HasSuffix(page.Permalink, "/") {
 		outputPath = filepath.Join(outputPath, "index.html")
 	}
 
-	return ctx.renderWithLayout(page, &finalContent, outputPath)
+	return ctx.renderWithLayout(page, outputPath)
 }
 
-func (ctx *buildContext) renderWithLayout(page *Page, content *bytes.Buffer, outputPath string) error {
+func (ctx *buildContext) renderWithLayout(page *Page, outputPath string) error {
+	layoutName := "base.html"
 	useLayout := true
-	layoutName := "base"
 
 	if customLayout, ok := page.Metadata["layout"].(string); ok {
 		if customLayout == "none" {
 			useLayout = false
 		} else {
-			layoutName = customLayout
+			layoutName = customLayout + ".html"
 		}
 	}
 
 	var finalBuf bytes.Buffer
 	if useLayout && page.IsMarkdown {
-		layout, exists := ctx.Layouts[layoutName]
-		if !exists {
-			printwarn("Layout '%s' not found, using default", layoutName)
-			layout = ctx.Layouts["base"]
-		}
+		templateData := TemplateData{Site: ctx.Site, Page: page, Config: ctx.Config, IsServing: ctx.IsServing}
 
-		templateData := TemplateData{
-			Site:      ctx.Site,
-			Page:      page,
-			Config:    ctx.Config,
-			IsServing: ctx.IsServing,
-		}
-
-		if err := layout.Execute(&finalBuf, templateData); err != nil {
-			return fmt.Errorf("failed to render layout for %s: %w", page.SourcePath, err)
+		err := ctx.Templates.ExecuteTemplate(&finalBuf, layoutName, templateData)
+		if err != nil {
+			if ctx.Templates.Lookup(layoutName) == nil {
+				printwarn("Layout `%s` not found, falling back to base.html", layoutName)
+				err = ctx.Templates.ExecuteTemplate(&finalBuf, "base.html", templateData)
+			}
+			if err != nil {
+				return fmt.Errorf("failed to render layout for %s: %w", page.SourcePath, err)
+			}
 		}
 	} else {
-		finalBuf = *content
+		finalBuf.WriteString(string(page.Content))
 	}
 
 	// write output
@@ -1069,7 +1043,7 @@ func watchAndRebuild(onRebuild func()) {
 		filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 			if info.IsDir() || filepath.Base(path) == trashConfigFilename {
 				if err := watcher.Add(path); err != nil {
-					printerr("Failed to watch directory %s: %v", path, err)
+					printerr("Failed to watch directory `%s`: %v", path, err)
 				}
 			}
 			return nil

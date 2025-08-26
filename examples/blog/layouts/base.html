@@ -17,9 +17,8 @@
         <main>
             {{ .Page.Content }}
         </main>
-        <footer>
-            <p>Powered by <a href="https://github.com/zeozeozeo/trash" target="_blank">Trash 🗑️</a></p>
-        </footer>
+        
+        {{ template "footer.html" }}
     </div>
 
     {{ if .IsServing }}
