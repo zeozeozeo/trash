@@ -11,15 +11,18 @@ This example parses the [products.csv](/products.csv) file directly in the templ
 {{ $products := expr `
     let lines = split(csvData, "\n");
     let header = map(split(trim(lines[0]), ","), { trim(#) });
-    let data_lines = filter(lines[1:], { trim(#) != "" });
-    map(data_lines, {
+    let dataLines = filter(lines[1:], { trim(#) != "" });
+
+    map(dataLines, {
         let fields = split(trim(#), ",");
-        {
-            (header[0]): fields[0],
-            (header[1]): int(fields[1]),
-            (header[2]): fields[2],
-            (header[3]): int(fields[3])
-        }
+        let pairs = map(header, {
+            let value = fields[#index];
+            let isInt = value matches '^-?[0-9]+$';
+            let isFloat = value matches '^-?[0-9]+\\.[0-9]+$';
+            [#, isInt ? int(value) : (isFloat ? float(value) : value)]
+        });
+
+        fromPairs(pairs)
     })
 ` (dict "csvData" $csvData) }}
 
