@@ -17,7 +17,7 @@ Trash - a stupid, simple website compiler.
 - YAML and TOML frontmatter parsing support
 - Automatic anchor placement
 - Automatially minifies output HTML, CSS, JS, JSON, SVG and XML for smallest builds
-- Under 1000 lines of Go code [in a single file](./main.go)
+- Under 1300 lines of Go code [in a single file](./main.go)
 
 ## Installation
 

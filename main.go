@@ -5,15 +5,19 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	text_template "text/template"
@@ -23,6 +27,7 @@ import (
 
 	d2 "github.com/FurqanSoftware/goldmark-d2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/websocket"
@@ -37,7 +42,7 @@ import (
 	"github.com/tdewolff/minify/v2/css"
 	minifyHtml "github.com/tdewolff/minify/v2/html"
 	"github.com/tdewolff/minify/v2/js"
-	"github.com/tdewolff/minify/v2/json"
+	minify_json "github.com/tdewolff/minify/v2/json"
 	"github.com/tdewolff/minify/v2/svg"
 	"github.com/tdewolff/minify/v2/xml"
 	treeblood "github.com/wyatt915/goldmark-treeblood"
@@ -109,7 +114,7 @@ func main() {
 	}
 	switch cmd {
 	case "", "build":
-		buildCmd(false, true)
+		build(false, true)
 	case "init":
 		initCmd()
 	case "watch":
@@ -193,7 +198,7 @@ func makedirs(dirs ...string) {
 const (
 	pagesDir            = "pages"
 	staticDir           = "static"
-	templateDir         = "templates"
+	layoutsDir          = "layouts"
 	outputDir           = "out"
 	trashConfigFilename = "Trash.toml"
 )
@@ -206,9 +211,9 @@ func initCmd() {
 		}
 	}
 
-	makedirs(pagesDir+"/posts", staticDir, templateDir)
+	makedirs(pagesDir+"/posts", staticDir, layoutsDir)
 
-	// templates/base.html
+	// layouts/base.html
 	writefile(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -239,7 +244,7 @@ func initCmd() {
     </script>
     {{ end }}
 </body>
-</html>`, "templates", "base.html")
+</html>`, layoutsDir, "base.html")
 
 	// static/style.css
 	writefile(`body {
@@ -251,7 +256,7 @@ func initCmd() {
   max-width: 800px;
   margin: 2rem auto;
   padding: 0 1rem;
-}`, "static", "style.css")
+}`, staticDir, "style.css")
 
 	// pages/posts/first-post.md
 	writefile(`---
@@ -281,8 +286,11 @@ Hello, world! This is my first post.`, pagesDir, "posts", "first-post.md")
 	writefile("/out", ".gitignore")
 
 	// Trash.toml
-	writefile(`[site]
-url = "https://example.com/" # Change this`, trashConfigFilename)
+	writefile(`# The structure of this config file is not forced upon you, it is just useful to
+# have the permalink/other configuration stored somewhere so you can access it in templates
+
+[site]
+url = "https://example.com/" # Access this like {{ .Config.site.url }}`, trashConfigFilename)
 
 	programName := getProgramName()
 	fmt.Printf("You can now do %s to build your site, %s to rebuild on file changes, or %s to start a server with live reloading.\n", color.HiBlueString(programName), color.HiBlueString(programName+" watch"), color.HiBlueString(programName+" serve"))
@@ -316,10 +324,7 @@ type TemplateData struct {
 	IsServing bool
 }
 
-func maybeInitMermaidCDP() {
-	if mermaidCompiler != nil {
-		return
-	}
+func initMermaidCDP() {
 	var err error
 	mermaidCompiler, err = mermaidcdp.New(&mermaidcdp.Config{
 		JSSource: mermaidJSSource,
@@ -339,11 +344,11 @@ func newMinifier() *minify.M {
 	m.AddFunc("text/html", minifyHtml.Minify)
 	m.AddFunc("image/svg+xml", svg.Minify)
 	m.AddFuncRegexp(regexp.MustCompile("^(application|text)/(x-)?(java|ecma)script$"), js.Minify)
-	m.AddFuncRegexp(regexp.MustCompile("[/+]json$"), json.Minify)
+	m.AddFuncRegexp(regexp.MustCompile("[/+]json$"), minify_json.Minify)
 	m.AddFuncRegexp(regexp.MustCompile("[/+]xml$"), xml.Minify)
 
-	m.AddFunc("importmap", json.Minify)
-	m.AddFunc("speculationrules", json.Minify)
+	m.AddFunc("importmap", minify_json.Minify)
+	m.AddFunc("speculationrules", minify_json.Minify)
 
 	aspMinifier := &minifyHtml.Minifier{}
 	aspMinifier.TemplateDelims = [2]string{"<%", "%>"}
@@ -438,8 +443,9 @@ var timeFormats = map[string]string{
 	"TimeOnly":    time.TimeOnly,
 }
 
-func stdFuncMap(allPages []*Page) text_template.FuncMap {
+func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 	return text_template.FuncMap{
+		// FS utilities
 		"readDir": func(dir string) []*Page {
 			var results []*Page
 			for _, p := range allPages {
@@ -450,7 +456,14 @@ func stdFuncMap(allPages []*Page) text_template.FuncMap {
 			}
 			return results
 		},
-
+		"readFile": func(path string) (string, error) {
+			cleanPath := filepath.Clean(path)
+			if strings.HasPrefix(cleanPath, "..") {
+				return "", fmt.Errorf("path cannot be outside the project directory")
+			}
+			content, err := os.ReadFile(cleanPath)
+			return string(content), err
+		},
 		"sortBy": func(key string, order string, pages []*Page) []*Page {
 			sort.SliceStable(pages, func(i, j int) bool {
 				valI, okI := pages[i].Metadata[key]
@@ -473,6 +486,7 @@ func stdFuncMap(allPages []*Page) text_template.FuncMap {
 			return pages
 		},
 
+		// time utilities
 		"formatDate": func(format string, v any) string {
 			var t time.Time
 			var err error
@@ -502,11 +516,33 @@ func stdFuncMap(allPages []*Page) text_template.FuncMap {
 
 			return t.UTC().Format(realFormat)
 		},
-
 		"now": func() time.Time {
 			return time.Now().UTC()
 		},
 
+		// random utilities
+		"randint": func(min, max int) int {
+			return rand.IntN(max-min+1) + min
+		},
+		"randfloat": func(min, max float64) float64 {
+			return min + rand.Float64()*(max-min)
+		},
+		"choice": func(choices ...any) any {
+			if len(choices) == 0 {
+				return nil
+			}
+			return choices[rand.IntN(len(choices))]
+		},
+		"shuffle": func(slice []any) []any {
+			shuffled := make([]any, len(slice))
+			copy(shuffled, slice)
+			rand.Shuffle(len(shuffled), func(i, j int) {
+				shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+			})
+			return shuffled
+		},
+
+		// string & URL utilities
 		"concatURL": func(base string, elements ...string) string {
 			u, err := url.Parse(base)
 			if err != nil {
@@ -518,11 +554,187 @@ func stdFuncMap(allPages []*Page) text_template.FuncMap {
 			u = u.JoinPath(elements...)
 			return u.String()
 		},
+		"truncate": func(s string, maxLength int) string {
+			if len(s) <= maxLength {
+				return s
+			}
+			return s[:maxLength] + "…"
+		},
+		"pluralize": func(count int, singular, plural string) string {
+			if count == 1 {
+				return fmt.Sprintf("%d %s", count, singular)
+			}
+			return fmt.Sprintf("%d %s", count, plural)
+		},
+
+		// math utilities
+		"add":      func(a, b int) int { return a + b },
+		"subtract": func(a, b int) int { return a - b },
+		"multiply": func(a, b int) int { return a * b },
+		"divide": func(a, b int) int {
+			if b == 0 {
+				return 0
+			}
+			return a / b
+		},
+		"max": func(a, b int) int { return max(a, b) },
+		"min": func(a, b int) int { return min(a, b) },
+
+		// array utilities
+		"contains": func(slice []any, item any) bool { return slices.Contains(slice, item) },
+		"first": func(slice []any) any {
+			if len(slice) == 0 {
+				return nil
+			}
+			return slice[0]
+		},
+		"last": func(slice []any) any {
+			if len(slice) == 0 {
+				return nil
+			}
+			return slice[len(slice)-1]
+		},
+		"reverse": func(slice []any) []any {
+			result := make([]any, len(slice))
+			for i, v := range slice {
+				result[len(slice)-1-i] = v
+			}
+			return result
+		},
+
+		// type conversion utilities
+		"toString": func(v any) string {
+			return fmt.Sprintf("%v", v)
+		},
+		"toInt": func(v any) int {
+			switch val := v.(type) {
+			case int:
+				return val
+			case float64:
+				return int(val)
+			case string:
+				if i, err := strconv.Atoi(val); err == nil {
+					return i
+				}
+			}
+			return 0
+		},
+		"toFloat": func(v any) float64 {
+			switch val := v.(type) {
+			case float64:
+				return val
+			case int:
+				return float64(val)
+			case string:
+				if f, err := strconv.ParseFloat(val, 64); err == nil {
+					return f
+				}
+			}
+			return 0
+		},
+
+		// conditional utilities
+		"default": func(def, val any) any {
+			if val == nil || val == "" || val == false {
+				return def
+			}
+			return val
+		},
+		"ternary": func(condition bool, trueVal, falseVal any) any {
+			if condition {
+				return trueVal
+			}
+			return falseVal
+		},
+
+		// json utilities
+		"toJSON": func(v any) string {
+			b, err := json.Marshal(v)
+			if err != nil {
+				return fmt.Sprintf("error: %v", err)
+			}
+			return string(b)
+		},
+		"fromJSON": func(s string) any {
+			var result any
+			if err := json.Unmarshal([]byte(s), &result); err != nil {
+				return nil
+			}
+			return result
+		},
+
+		// query utilities
+		// example: {{ $featured := where .Site.Pages "featured" true }}
+		"where": func(pages []*Page, key string, value any) []*Page {
+			var result []*Page
+			// TODO: use reflection for multilevel queries?
+			for _, p := range pages {
+				if val, ok := p.Metadata[key]; ok && val == value {
+					result = append(result, p)
+				}
+			}
+			return result
+		},
+		// example: {{ $postsByYear := .Site.Pages | groupBy "year" }}
+		"groupBy": func(key string, pages []*Page) map[string][]*Page {
+			groups := make(map[string][]*Page)
+			for _, p := range pages {
+				val, ok := p.Metadata[key]
+				if !ok {
+					continue
+				}
+				groupKey := fmt.Sprintf("%v", val)
+				groups[groupKey] = append(groups[groupKey], p)
+			}
+			return groups
+		},
+		"dict": func(values ...any) (map[string]any, error) {
+			if len(values)%2 != 0 {
+				return nil, fmt.Errorf("dict expects an even number of arguments")
+			}
+			m := make(map[string]any)
+			for i := 0; i < len(values); i += 2 {
+				key, ok := values[i].(string)
+				if !ok {
+					return nil, fmt.Errorf("dict keys must be strings")
+				}
+				m[key] = values[i+1]
+			}
+			return m, nil
+		},
+
+		// text utilities
+		"markdownify": func(s string) (template.HTML, error) {
+			var buf bytes.Buffer
+			if err := ctx.MarkdownParser.Convert([]byte(s), &buf); err != nil {
+				return "", err
+			}
+			return template.HTML(buf.String()), nil
+		},
+
+		// print & formatting utilities
+		"print": func(a ...any) string {
+			s := spew.Sdump(a)
+			fmt.Println(s)
+			return s
+		},
+		"sprint": func(format string, a ...any) string {
+			return spew.Sprintf(format, a)
+		},
 	}
 }
 
-func buildCmd(isServing, copyStatic bool) {
-	if !checkAllDirsExist(pagesDir, templateDir) {
+type buildContext struct {
+	Config         map[string]any
+	Layouts        map[string]*template.Template
+	MarkdownParser goldmark.Markdown
+	Minifier       *minify.M
+	Site           Site
+	IsServing      bool
+}
+
+func build(isServing, copyStatic bool) {
+	if !checkAllDirsExist(pagesDir, layoutsDir) {
 		printerr("No project files in current directory\n")
 		usage()
 		os.Exit(1)
@@ -538,24 +750,72 @@ func buildCmd(isServing, copyStatic bool) {
 
 	start := time.Now()
 
-	// parse config
-	var cfg map[string]any
-	{
-		cfgFile, err := os.Open(trashConfigFilename)
-		if err == nil {
-			defer cfgFile.Close()
-			if err := toml.NewDecoder(cfgFile).Decode(&cfg); err != nil {
-				printerr("Error parsing config file: %v", err)
-				os.Exit(1)
-			}
-		} else {
-			printwarn("No `%s` config file found (run %s again)", trashConfigFilename, color.HiBlueString(getProgramName()+" init"))
+	ctx := &buildContext{
+		Config:    parseConfig(),
+		IsServing: isServing,
+		Minifier:  newMinifier(),
+	}
+
+	// load all layouts
+	if err := ctx.loadLayouts(); err != nil {
+		printerr("Failed to load layouts: %v", err)
+		os.Exit(1)
+	}
+
+	// discover and process all pages
+	if err := ctx.discoverAndProcessPages(); err != nil {
+		printerr("Failed to process pages: %v", err)
+		os.Exit(1)
+	}
+
+	// copy static files
+	if copyStatic {
+		if err := ctx.copyStaticFiles(); err != nil {
+			printerr("Failed to copy static files: %v", err)
 		}
 	}
 
-	// pass 1: discover markdown files
+	fmt.Printf("%s in %s.\n", color.HiGreenString("Build complete"), time.Since(start))
+}
+
+func (ctx *buildContext) loadLayouts() error {
+	ctx.Layouts = make(map[string]*template.Template)
+
+	// load base layout
+	baseLayout, err := template.ParseFiles(filepath.Join(layoutsDir, "base.html"))
+	if err != nil {
+		return fmt.Errorf("could not parse base layout template: %w", err)
+	}
+	ctx.Layouts["base"] = baseLayout
+
+	// load additional layouts
+	files, err := os.ReadDir(layoutsDir)
+	if err != nil {
+		return fmt.Errorf("could not read layouts directory: %w", err)
+	}
+
+	for _, file := range files {
+		if file.IsDir() || file.Name() == "base.html" {
+			continue
+		}
+
+		layoutPath := filepath.Join(layoutsDir, file.Name())
+		layout, err := template.ParseFiles(filepath.Join(layoutsDir, "base.html"), layoutPath)
+		if err != nil {
+			printwarn("Failed to parse layout %s: %v", file.Name(), err)
+			continue
+		}
+
+		name := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
+		ctx.Layouts[name] = layout
+	}
+
+	return nil
+}
+
+func (ctx *buildContext) discoverAndProcessPages() error {
+	// pass 1: discover all pages in the `pages` directory, parse their frontmatter and determine permalinks
 	var allPages []*Page
-	var hasMermaid bool
 	err := filepath.Walk(pagesDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -569,17 +829,24 @@ func buildCmd(isServing, copyStatic bool) {
 			return fmt.Errorf("failed to read %s: %w", path, err)
 		}
 
+		// parse frontmatter
 		page := &Page{
 			SourcePath: path,
 			IsMarkdown: strings.HasSuffix(path, ".md"),
-			Metadata:   make(map[string]any),
 			RawContent: string(fileContent),
+			Metadata:   make(map[string]any),
 		}
+		mdFrontmatter := goldmark.New(
+			goldmark.WithExtensions(&frontmatter.Extender{Mode: frontmatter.SetMetadata}),
+		)
+		root := mdFrontmatter.Parser().Parse(text.NewReader([]byte(page.RawContent)))
+		doc := root.OwnerDocument()
+		page.Metadata = doc.Meta()
 
+		// default title
 		if _, ok := page.Metadata["title"]; !ok && page.IsMarkdown {
 			page.Metadata["title"] = "Untitled"
 		}
-		hasMermaid = hasMermaid || strings.Contains(page.RawContent, "```mermaid")
 
 		// generate permalink
 		relPath, _ := filepath.Rel(pagesDir, path)
@@ -597,41 +864,160 @@ func buildCmd(isServing, copyStatic bool) {
 				page.Permalink = "/" + filepath.ToSlash(outPath) + ".html"
 			}
 		} else {
-			// for non-markdown files, permalink is just the path
+			// for non-markdown files, the permalink is just the relative path
 			page.Permalink = "/" + filepath.ToSlash(relPath)
+		}
+
+		if mermaidCompiler == nil && strings.Contains(page.RawContent, "```mermaid") {
+			initMermaidCDP()
 		}
 
 		allPages = append(allPages, page)
 		return nil
 	})
+
 	if err != nil {
-		printerr("Failed to walk pages directory: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("error during page discovery: %w", err)
 	}
 
-	site := Site{Pages: allPages}
+	ctx.Site.Pages = allPages
 
-	// pass 2: parse all frontmatter
-	{
-		mdFrontmatter := goldmark.New(
-			goldmark.WithExtensions(&frontmatter.Extender{Mode: frontmatter.SetMetadata}),
-		)
-		for _, page := range allPages {
-			root := mdFrontmatter.Parser().Parse(text.NewReader([]byte(page.RawContent)))
-			doc := root.OwnerDocument()
-			page.Metadata = doc.Meta()
-
-			if _, ok := page.Metadata["title"]; !ok {
-				page.Metadata["title"] = "Untitled"
-			}
+	// pass 2: now that we have all pages, we can compile each one
+	for _, page := range allPages {
+		if err := ctx.compilePage(page, allPages); err != nil {
+			return fmt.Errorf("failed to process page %s: %w", page.SourcePath, err)
 		}
 	}
 
-	if hasMermaid {
-		maybeInitMermaidCDP()
+	return nil
+}
+
+func (ctx *buildContext) compilePage(page *Page, allPages []*Page) error {
+	if ctx.MarkdownParser == nil {
+		ctx.MarkdownParser = createMarkdownParser()
 	}
 
-	mdContent := goldmark.New(
+	// process template content
+	tmpl, err := text_template.New(page.SourcePath).Funcs(ctx.stdFuncMap(allPages)).Parse(page.RawContent)
+	if err != nil {
+		return fmt.Errorf("failed to parse markdown template for %s: %w", page.SourcePath, err)
+	}
+
+	var processedContent bytes.Buffer
+	templateData := TemplateData{Site: ctx.Site, Page: page, Config: ctx.Config, IsServing: ctx.IsServing}
+	if err := tmpl.Execute(&processedContent, templateData); err != nil {
+		return fmt.Errorf("failed to execute markdown template for %s: %w", page.SourcePath, err)
+	}
+
+	// convert markdown to HTML if needed
+	var finalContent bytes.Buffer
+	if page.IsMarkdown {
+		if err := ctx.MarkdownParser.Convert(processedContent.Bytes(), &finalContent); err != nil {
+			return fmt.Errorf("failed to convert markdown for %s: %w", page.SourcePath, err)
+		}
+		page.Content = template.HTML(finalContent.String())
+	} else {
+		finalContent = processedContent
+	}
+
+	// apply layout
+	outputPath := filepath.Join(outputDir, strings.TrimPrefix(page.Permalink, "/"))
+	if strings.HasSuffix(page.Permalink, "/") {
+		outputPath = filepath.Join(outputPath, "index.html")
+	}
+
+	return ctx.renderWithLayout(page, &finalContent, outputPath)
+}
+
+func (ctx *buildContext) renderWithLayout(page *Page, content *bytes.Buffer, outputPath string) error {
+	useLayout := true
+	layoutName := "base"
+
+	if customLayout, ok := page.Metadata["layout"].(string); ok {
+		if customLayout == "none" {
+			useLayout = false
+		} else {
+			layoutName = customLayout
+		}
+	}
+
+	var finalBuf bytes.Buffer
+	if useLayout && page.IsMarkdown {
+		layout, exists := ctx.Layouts[layoutName]
+		if !exists {
+			printwarn("Layout '%s' not found, using default", layoutName)
+			layout = ctx.Layouts["base"]
+		}
+
+		templateData := TemplateData{
+			Site:      ctx.Site,
+			Page:      page,
+			Config:    ctx.Config,
+			IsServing: ctx.IsServing,
+		}
+
+		if err := layout.Execute(&finalBuf, templateData); err != nil {
+			return fmt.Errorf("failed to render layout for %s: %w", page.SourcePath, err)
+		}
+	} else {
+		finalBuf = *content
+	}
+
+	// write output
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+		return fmt.Errorf("failed to create directory for %s: %w", outputPath, err)
+	}
+
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", outputPath, err)
+	}
+	defer file.Close()
+
+	// minify based on file extension
+	ext := filepath.Ext(outputPath)
+	if mime, ok := minifyTypes[ext]; ok {
+		minified := minifyBuf(ctx.Minifier, finalBuf, mime)
+		_, err = io.Copy(file, &minified)
+	} else {
+		_, err = io.Copy(file, &finalBuf)
+	}
+
+	return err
+}
+
+func (ctx *buildContext) copyStaticFiles() error {
+	return filepath.Walk(staticDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		relPath, _ := filepath.Rel(staticDir, path)
+		dstPath := filepath.Join(outputDir, relPath)
+		return minifyStaticFile(ctx.Minifier, path, dstPath, info)
+	})
+}
+
+func parseConfig() map[string]any {
+	cfg := make(map[string]any)
+	cfgFile, err := os.Open(trashConfigFilename)
+	if err != nil {
+		printwarn("No `%s` config file found", trashConfigFilename)
+		return cfg
+	}
+	defer cfgFile.Close()
+
+	if err := toml.NewDecoder(cfgFile).Decode(&cfg); err != nil {
+		printerr("Error parsing config file: %v", err)
+	}
+	return cfg
+}
+
+func createMarkdownParser() goldmark.Markdown {
+	return goldmark.New(
 		goldmark.WithRendererOptions(html.WithUnsafe()),
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(),
@@ -646,7 +1032,7 @@ func buildCmd(isServing, copyStatic bool) {
 			emoji.Emoji,
 			treeblood.MathML(),
 			&frontmatter.Extender{},
-			&d2.Extender{Sketch: true, ThemeID: ptr(int64(200))}, // see https://d2lang.com/tour/themes/
+			&d2.Extender{Sketch: true, ThemeID: ptr(int64(200))},
 			&mermaid.Extender{
 				Compiler: mermaidCompiler,
 			},
@@ -658,8 +1044,8 @@ func buildCmd(isServing, copyStatic bool) {
 					chromahtml.ClassPrefix("highlight-"),
 					chromahtml.WithClasses(true),
 					chromahtml.WithAllClasses(true),
-					chromahtml.LineNumbersInTable(false), // TODO
-					chromahtml.WithLineNumbers(false),    // TODO
+					chromahtml.LineNumbersInTable(false),
+					chromahtml.WithLineNumbers(false),
 				),
 			),
 			&fences.Extender{},
@@ -667,110 +1053,6 @@ func buildCmd(isServing, copyStatic bool) {
 			&anchor.Extender{},
 		),
 	)
-
-	layout, err := template.ParseFiles(filepath.Join(templateDir, "base.html"))
-	if err != nil {
-		printerr("Could not parse base layout template: %v", err)
-		os.Exit(1)
-	}
-
-	// pass 3: process markdown and render HTML
-	m := newMinifier()
-	for _, page := range allPages {
-		tmpl, err := text_template.New(page.SourcePath).Funcs(stdFuncMap(allPages)).Parse(page.RawContent)
-		if err != nil {
-			printerr("Failed to parse markdown template for %s: %v", page.SourcePath, err)
-			continue
-		}
-
-		var processedContent bytes.Buffer
-		templateData := TemplateData{Site: site, Page: page, Config: cfg, IsServing: isServing}
-		if err := tmpl.Execute(&processedContent, templateData); err != nil {
-			printerr("Failed to execute markdown template for %s: %v", page.SourcePath, err)
-			continue
-		}
-
-		var finalContent bytes.Buffer
-		if page.IsMarkdown { // if it's markdown, render to html
-			if err := mdContent.Convert(processedContent.Bytes(), &finalContent); err != nil {
-				printerr("Failed to convert markdown for %s: %v", page.SourcePath, err)
-				continue
-			}
-			page.Content = template.HTML(finalContent.String())
-		} else {
-			finalContent = processedContent
-		}
-
-		outputPath := filepath.Join(outputDir, strings.TrimPrefix(page.Permalink, "/"))
-		if strings.HasSuffix(page.Permalink, "/") {
-			outputPath = filepath.Join(outputPath, "index.html")
-		}
-
-		// optionally, wrap in a layout
-		var finalBuf bytes.Buffer
-		layoutTmpl := layout // default
-		useLayout := true
-		if layoutName, ok := page.Metadata["layout"].(string); ok {
-			if layoutName == "none" {
-				useLayout = false
-			} else {
-				// TODO: load a different layout?
-			}
-		}
-
-		// only use layout for markdown files unless specified otherwise
-		if useLayout && page.IsMarkdown {
-			templateData.Page.Content = template.HTML(finalContent.String())
-			if err := layoutTmpl.Execute(&finalBuf, templateData); err != nil {
-				printerr("Failed to render layout for %s: %v", page.SourcePath, err)
-				continue
-			}
-		} else {
-			finalBuf = finalContent
-		}
-
-		// write the final file
-		if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
-			printerr("Failed to create directory for %s: %v", outputPath, err)
-			continue
-		}
-
-		file, err := os.Create(outputPath)
-		if err != nil {
-			printerr("Failed to create file %s: %v", outputPath, err)
-			continue
-		}
-		defer file.Close()
-
-		// minify based on file extension
-		var minifiedBuf bytes.Buffer
-		ext := filepath.Ext(outputPath)
-		if mime, ok := minifyTypes[ext]; ok {
-			minifiedBuf = minifyBuf(m, finalBuf, mime)
-		} else {
-			minifiedBuf = finalBuf
-		}
-		io.Copy(file, &minifiedBuf)
-	}
-
-	// copy static files
-	if copyStatic {
-		filepath.Walk(staticDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				return nil
-			}
-
-			relPath, _ := filepath.Rel(staticDir, path)
-			dstPath := filepath.Join(outputDir, relPath)
-
-			return minifyStaticFile(m, path, dstPath, info)
-		})
-	}
-
-	fmt.Printf("%s in %s.\n", color.HiGreenString("Build complete"), time.Since(start))
 }
 
 // -- watch --
@@ -783,7 +1065,7 @@ func watchAndRebuild(onRebuild func()) {
 	}
 	defer watcher.Close()
 
-	for _, path := range []string{pagesDir, staticDir, templateDir, trashConfigFilename} {
+	for _, path := range []string{pagesDir, staticDir, layoutsDir, trashConfigFilename} {
 		filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 			if info.IsDir() || filepath.Base(path) == trashConfigFilename {
 				if err := watcher.Add(path); err != nil {
@@ -812,7 +1094,7 @@ func watchAndRebuild(onRebuild func()) {
 					rebuildTimer.Stop()
 				}
 				rebuildTimer = time.AfterFunc(debounceDuration, func() {
-					buildCmd(true, strings.HasPrefix(event.Name, staticDir+string(filepath.Separator)))
+					build(true, strings.HasPrefix(event.Name, staticDir+string(filepath.Separator)))
 					onRebuild()
 				})
 				mu.Unlock()
@@ -827,7 +1109,7 @@ func watchAndRebuild(onRebuild func()) {
 }
 
 func watchCmd() {
-	buildCmd(false, true)
+	build(false, true)
 
 	fmt.Println("Watching for changes...")
 	watchAndRebuild(func() {})
@@ -886,7 +1168,7 @@ func (h *Hub) run() {
 
 func serveCmd() {
 	// initial build
-	buildCmd(true, true)
+	build(true, true)
 
 	hub := newHub()
 	go hub.run()
