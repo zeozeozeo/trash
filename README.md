@@ -3,7 +3,7 @@
 Trash - a stupid, simple website compiler.
 
 > [!CAUTION]
-> The demos are quite ugly and unfinished, but the compiler itself is already pretty usable.
+> Nothing is stabilized yet, so existing pages may break from time to time, do not use this for anything serious
 
 ## Features
 
@@ -60,10 +60,6 @@ You should still refer to the [source code](./main.go) instead of this if possib
 - `readFile "path"`: Read a file from the project root
   ```go-template
   <style>{{ readFile "static/style.css" }}</style>
-  ```
-- `sortBy "key" "order" $pages`: Sort a list of pages. `order` can be `"asc"` or `"desc"`
-  ```go-template
-  {{ $posts := readDir "posts" | sortBy "date" "desc" }}
   ```
 
 #### Dict operations
@@ -148,7 +144,7 @@ Passing a `.Page` will decay into its frontmatter (`.Page.Metadata`):
 
 #### Strings and URLs
 
-- `concatURL "base" "path"`: Join URL parts together
+- `concatURL "base" "path1" "path2" ...`: Join URL parts together
   ```go-template
   <img src="{{ concatURL .Config.site.url .Page.Metadata.image }}">
   ```
@@ -187,7 +183,7 @@ Passing a `.Page` will decay into its frontmatter (`.Page.Metadata`):
   ```
 - `shuffle $list`: Randomly shuffle a list (returns a copy)
 
-### Slice utilities
+#### Slice utilities
 
 - `first $list`: Get the first item of a slice
 - `last $list`: Get the last item of a slice
