@@ -5,6 +5,7 @@ go 1.24.4
 require (
 	github.com/alecthomas/chroma/v2 v2.19.0
 	github.com/davecgh/go-spew v1.1.1
+	github.com/expr-lang/expr v1.17.6
 	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/tdewolff/minify/v2 v2.24.0

@@ -28,6 +28,7 @@ import (
 	d2 "github.com/FurqanSoftware/goldmark-d2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/expr-lang/expr"
 	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/websocket"
@@ -720,6 +721,33 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 		},
 		"sprint": func(format string, a ...any) string {
 			return spew.Sprintf(format, a)
+		},
+
+		// expression evaluation
+		"expr": func(expression string, data ...any) (any, error) {
+			env := map[string]any{
+				"Site":   ctx.Site,
+				"Config": ctx.Config,
+			}
+			if len(data) > 0 {
+				if userEnv, ok := data[0].(map[string]any); ok {
+					for k, v := range userEnv {
+						env[k] = v
+					}
+				}
+			}
+
+			program, err := expr.Compile(expression, expr.Env(env))
+			if err != nil {
+				return nil, err
+			}
+
+			result, err := expr.Run(program, env)
+			if err != nil {
+				return nil, err
+			}
+
+			return result, nil
 		},
 	}
 }
