@@ -12,7 +12,7 @@ All of the comments, including this one, will be compiled out when you run `tras
     <link>{{ $.Config.site.url }}</link> <!-- this is from the parsed `Trash.toml` in examples/blog -->
     <description>A blog about the Trash website compiler.</description>
     <language>en-us</language>
-    <lastBuildDate>{{ now | formatDate "RFC1123Z" }}</lastBuildDate> <!-- this is how you get the current date & format dates -->
+    <lastBuildDate>{{ now | formatTime "RFC1123Z" }}</lastBuildDate> <!-- this is how you get the current date & format dates -->
     <atom:link href="{{ concatURL $.Config.site.url "/rss.xml" }}" rel="self" type="application/rss+xml" />
 
     {{- $posts := readDir "posts" | sortBy "date" "desc" }}
@@ -23,7 +23,7 @@ All of the comments, including this one, will be compiled out when you run `tras
         <!-- this is how we concatenate the permalink we set in Trash.toml with the post's permalink -->
         <link>{{ concatURL $.Config.site.url .Permalink }}</link>
 
-        <pubDate>{{ .Metadata.date | formatDate "RFC1123Z" }}</pubDate>
+        <pubDate>{{ .Metadata.date | formatTime "RFC1123Z" }}</pubDate>
         <guid isPermaLink="true">{{ concatURL $.Config.site.url .Permalink }}</guid>
         <description><![CDATA[{{ .Metadata.description }}]]></description> <!-- this is from the frontmatter in pages/posts/*.md -->
     </item>

@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"sort"
@@ -474,6 +475,53 @@ var timeFormats = map[string]string{
 	"TimeOnly":    time.TimeOnly,
 }
 
+func getValueByPath(item any, path string) any {
+	if item == nil {
+		return nil
+	}
+
+	// handle map
+	if m, ok := item.(map[string]any); ok {
+		return queryMapOrDefault[any](m, nil, strings.Split(path, ".")...)
+	}
+
+	// handle *Page
+	if page, ok := item.(*Page); ok {
+		return queryMapOrDefault[any](page.Metadata, nil, strings.Split(path, ".")...)
+	}
+
+	// handle struct
+	val := reflect.ValueOf(item)
+	for val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+	if val.Kind() != reflect.Struct {
+		return nil
+	}
+
+	parts := strings.Split(path, ".")
+	current := val
+	for _, part := range parts {
+		if current.Kind() == reflect.Ptr {
+			current = current.Elem()
+		}
+		if current.Kind() != reflect.Struct {
+			return nil
+		}
+
+		field := current.FieldByName(strings.Title(part))
+		if !field.IsValid() {
+			return nil
+		}
+		current = field
+	}
+
+	if current.IsValid() {
+		return current.Interface()
+	}
+	return nil
+}
+
 func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 	return text_template.FuncMap{
 		// FS utilities
@@ -495,30 +543,9 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 			content, err := os.ReadFile(cleanPath)
 			return string(content), err
 		},
-		"sortBy": func(key string, order string, pages []*Page) []*Page {
-			sort.SliceStable(pages, func(i, j int) bool {
-				valI, okI := pages[i].Metadata[key]
-				valJ, okJ := pages[j].Metadata[key]
-				if !okI {
-					return false
-				}
-				if !okJ {
-					return true
-				}
-
-				strI := fmt.Sprintf("%v", valI)
-				strJ := fmt.Sprintf("%v", valJ)
-
-				if strings.ToLower(order) == "desc" {
-					return strI > strJ
-				}
-				return strI < strJ
-			})
-			return pages
-		},
 
 		// time utilities
-		"formatDate": func(format string, v any) string {
+		"formatTime": func(format string, v any) string {
 			var t time.Time
 			var err error
 
@@ -702,60 +729,82 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 		},
 
 		// query utilities
-		// example: {{ $featured := where .Site.Pages "featured" true }}
-		"where": func(pages []*Page, key string, value any) []*Page {
-			var result []*Page
-			path := strings.Split(key, ".")
-			for _, p := range pages {
-				if val, exists := queryMap(p.Metadata, path...); exists && val == value {
-					result = append(result, p)
+		"sortBy": func(key string, order string, collection any) any {
+			val := reflect.ValueOf(collection)
+			if val.Kind() != reflect.Slice {
+				return collection
+			}
+
+			length := val.Len()
+			items := make([]any, length)
+			for i := range length {
+				items[i] = val.Index(i).Interface()
+			}
+
+			sort.SliceStable(items, func(i, j int) bool {
+				valI := getValueByPath(items[i], key)
+				valJ := getValueByPath(items[j], key)
+
+				strI := fmt.Sprintf("%v", valI)
+				strJ := fmt.Sprintf("%v", valJ)
+
+				if strings.ToLower(order) == "desc" {
+					return strI > strJ
+				}
+				return strI < strJ
+			})
+
+			return items
+		},
+		"where": func(key string, value any, collection any) any {
+			val := reflect.ValueOf(collection)
+			if val.Kind() != reflect.Slice {
+				return collection
+			}
+
+			length := val.Len()
+			var result []any
+			for i := range length {
+				item := val.Index(i).Interface()
+				if itemVal := getValueByPath(item, key); itemVal == value {
+					result = append(result, item)
 				}
 			}
 			return result
 		},
-		// example: {{ $postsByYear := .Site.Pages | groupBy "year" }}
-		"groupBy": func(key string, pages []*Page) map[string][]*Page {
-			groups := make(map[string][]*Page)
-			path := strings.Split(key, ".")
-			for _, p := range pages {
-				val, exists := queryMap(p.Metadata, path...)
-				if !exists {
-					continue
-				}
-				groupKey := fmt.Sprintf("%v", val)
-				groups[groupKey] = append(groups[groupKey], p)
+		"groupBy": func(key string, collection any) map[string][]any {
+			val := reflect.ValueOf(collection)
+			if val.Kind() != reflect.Slice {
+				return map[string][]any{"": {collection}}
+			}
+
+			groups := make(map[string][]any)
+			length := val.Len()
+			for i := range length {
+				item := val.Index(i).Interface()
+				groupKey := fmt.Sprintf("%v", getValueByPath(item, key))
+				groups[groupKey] = append(groups[groupKey], item)
 			}
 			return groups
 		},
-		// example: {{ $authors := .Site.Pages | select "parentkey.author" }}
-		"select": func(key string, pages []*Page) []any {
+		"select": func(key string, collection any) []any {
+			val := reflect.ValueOf(collection)
+			if val.Kind() != reflect.Slice {
+				return []any{getValueByPath(collection, key)}
+			}
+
 			var result []any
-			path := strings.Split(key, ".")
-			for _, p := range pages {
-				if val, exists := queryMap(p.Metadata, path...); exists {
+			length := val.Len()
+			for i := range length {
+				item := val.Index(i).Interface()
+				if val := getValueByPath(item, key); val != nil {
 					result = append(result, val)
 				}
 			}
 			return result
 		},
-		"has": func(key string, page *Page) bool {
-			path := strings.Split(key, ".")
-			_, exists := queryMap(page.Metadata, path...)
-			return exists
-		},
-		"dict": func(values ...any) (map[string]any, error) {
-			if len(values)%2 != 0 {
-				return nil, fmt.Errorf("dict expects an even number of arguments")
-			}
-			m := make(map[string]any)
-			for i := 0; i < len(values); i += 2 {
-				key, ok := values[i].(string)
-				if !ok {
-					return nil, fmt.Errorf("dict keys must be strings")
-				}
-				m[key] = values[i+1]
-			}
-			return m, nil
+		"has": func(key string, item any) bool {
+			return getValueByPath(item, key) != nil
 		},
 
 		// print & formatting utilities
@@ -791,6 +840,22 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 			}
 
 			return result, nil
+		},
+
+		// other
+		"dict": func(values ...any) (map[string]any, error) {
+			if len(values)%2 != 0 {
+				return nil, fmt.Errorf("dict expects an even number of arguments")
+			}
+			m := make(map[string]any)
+			for i := 0; i < len(values); i += 2 {
+				key, ok := values[i].(string)
+				if !ok {
+					return nil, fmt.Errorf("dict keys must be strings")
+				}
+				m[key] = values[i+1]
+			}
+			return m, nil
 		},
 	}
 }
