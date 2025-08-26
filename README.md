@@ -19,7 +19,7 @@ Trash - a stupid, simple website compiler.
 - Automatially minifies output HTML, CSS, JS, JSON, SVG and XML for smallest builds
 - Lots of built-in template functions including an integration with the [Expr expression language](https://expr-lang.org/)
 - Built-in webserver with live-reloading (`trash serve`)
-- Under 1300 lines of Go code [in a single file](./main.go)
+- Under 1400 lines of Go code [in a single file](./main.go)
 
 ## Installation
 
@@ -214,3 +214,71 @@ Passing a `.Page` will decay into its frontmatter (`.Page.Metadata`):
   {{ $message := sprint "Processed page %s" .Page.Permalink }}
   ```
 - `expr "code" environ`: Execute an [Expr](https://expr-lang.org/) block, see the [blog example](./examples/blog/pages/posts/expr-demo.md) for more
+
+## Config format
+
+Running `trash init` will create a `Trash.toml` as one of the files in your current directory. The structure of this file is not forced upon you whatsoever, however there are a few optional settings you can toggle:
+
+```toml
+[mermaid]
+theme = "dark" # see available themes at https://mermaid.js.org/config/theming.html
+
+[d2]
+sketch = true # see https://d2lang.com/tour/sketch/
+theme = 200   # see available themes at https://d2lang.com/tour/themes/
+
+[pikchr]
+dark = true # change pikchr colors to assume a dark-mode theme
+
+[anchor]
+text = "#"          # change the ¶ character in auto-anchors to something else
+position = "before" # default is "after", where to place the anchor
+```
+
+Aside from this, you can add your own fields, and access them in templates:
+
+```toml
+[site]
+url = "https://example.com/"
+```
+
+Let's say you're making an RSS feed for your blog:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+    <title>My Blog</title>
+    <link>{{ .Config.site.url }}</link> <!-- this is the `url` from Trash.toml! -->
+    ...
+    <item>
+        ...
+    </item>
+</channel>
+```
+
+## Template context
+
+All templates under the `layouts` directory are created in the same context, so you can include other templates within a template:
+
+```html
+<!-- layouts/base.html (this is the default layout) --->
+<!DOCTYPE html>
+<html lang="en">
+{{ template "boilerplate.html" }}
+<body>
+    {{ .Page.Content }}
+</body>
+</html>
+```
+
+```html
+<!-- layouts/boilerplate.html --->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Blog</title>
+</head>
+```
+
+This is not the case for `.md` filles inside the `pages` directory.
