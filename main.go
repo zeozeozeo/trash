@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -1214,6 +1215,36 @@ func (a *anchorTexter) AnchorText(*anchor.HeaderInfo) []byte {
 	return a.text
 }
 
+type mermaidCliBuilder struct{}
+
+func (cli mermaidCliBuilder) CommandContext(ctx context.Context, args ...string) *exec.Cmd {
+	// workaround for https://github.com/abhinav/goldmark-mermaid/issues/141
+	if os.Getenv("TRASH_NO_SANDBOX") != "" {
+		const puppeteerConfig = "puppeteer-config.json"
+		_, err := os.Stat(puppeteerConfig)
+		if err != nil {
+			if os.IsNotExist(err) {
+				f, err := os.Create(puppeteerConfig)
+				if err != nil {
+					printerr("Error creating %s: %v", puppeteerConfig, err)
+				}
+				defer f.Close()
+				_, err = f.WriteString(`{
+    "args": [
+        "--no-sandbox"
+    ]
+}`)
+				if err != nil {
+					printerr("Error writing to %s: %v", puppeteerConfig, err)
+				}
+			}
+		}
+
+		args = append(args, "-p"+puppeteerConfig)
+	}
+	return exec.CommandContext(ctx, "mmdc", args...)
+}
+
 func createMarkdownParser(mermaidTheme string, d2Sketch bool, d2Theme int64, pikchrDarkMode bool, anchorText *string, anchorPosition anchor.Position) goldmark.Markdown {
 	var d2ThemeId *int64
 	if d2Theme >= 0 {
@@ -1245,6 +1276,7 @@ func createMarkdownParser(mermaidTheme string, d2Sketch bool, d2Theme int64, pik
 			&d2.Extender{Sketch: d2Sketch, ThemeID: d2ThemeId},
 			&mermaid.Extender{
 				Compiler: compiler,
+				CLI:      &mermaidCliBuilder{},
 				Theme:    mermaidTheme,
 			},
 			&pikchr.Extender{DarkMode: pikchrDarkMode},
