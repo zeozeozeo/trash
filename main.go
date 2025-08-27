@@ -112,9 +112,34 @@ func main() {
 	}()
 
 	var cmd string
+	var targetDir string
+
 	if len(os.Args) > 1 {
 		cmd = os.Args[1]
 	}
+	if len(os.Args) > 2 {
+		targetDir = os.Args[2]
+	}
+
+	if targetDir != "" {
+		originalDir, err := os.Getwd()
+		if err != nil {
+			printerr("Failed to get current directory: %v", err)
+			os.Exit(1)
+		}
+
+		if err := os.Chdir(targetDir); err != nil {
+			printerr("Failed to change to directory `%s`: %v", targetDir, err)
+			os.Exit(1)
+		}
+
+		defer func() {
+			if err := os.Chdir(originalDir); err != nil {
+				printerr("Failed to change back to original directory: %v", err)
+			}
+		}()
+	}
+
 	switch cmd {
 	case "", "build":
 		build(false, true)
