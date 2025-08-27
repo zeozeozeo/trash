@@ -1,9 +1,10 @@
 ---
 title: "Parsing CSV with Expr"
 description: "Parse CSV files directly in a template"
+date: "2025-08-25"
 ---
 
-This example parses the [products.csv](/products.csv) file directly in the template by using the [Expr](https://expr-lang.org/) expression language.
+This example parses the [products.csv](/static/products.csv) file directly in the template by using the [Expr](https://expr-lang.org/) expression language.
 
 <!-- parse the CSV file -->
 

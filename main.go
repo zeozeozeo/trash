@@ -1147,9 +1147,7 @@ func (ctx *buildContext) copyStaticFiles() error {
 		if info.IsDir() {
 			return nil
 		}
-
-		relPath, _ := filepath.Rel(staticDir, path)
-		dstPath := filepath.Join(outputDir, relPath)
+		dstPath := filepath.Join(outputDir, path)
 		return minifyStaticFile(ctx.Minifier, path, dstPath, info)
 	})
 }
