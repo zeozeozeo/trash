@@ -55,11 +55,8 @@ jobs:
           
       - name: Build Examples
         run: |
-          echo "Building blog example..."
-          ./trash build ./examples/blog
-    
-          echo "Building personal example..."
-          ./trash build ./examples/personal
+          TRASH_NO_SANDBOX=1 ./trash build ./examples/blog
+          TRASH_NO_SANDBOX=1 ./trash build ./examples/personal
           
           mkdir -p _site
           cp examples/index.html _site/
