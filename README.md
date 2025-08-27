@@ -21,7 +21,7 @@ This readme is more of a reference; if you want pretty pictures, go see the ones
 - Automatially minifies output HTML, CSS, JS, JSON, SVG and XML for smallest builds
 - Lots of built-in template functions including an integration with the [Expr expression language](https://expr-lang.org/)
 - Built-in webserver with live-reloading (`trash serve`)
-- Under 1400 lines of Go code [in a single file](./main.go)
+- Under 1500 lines of Go code [in a single file](./main.go)
 
 ## Installation
 
@@ -148,6 +148,8 @@ Passing a `.Page` will decay into its frontmatter (`.Page.Metadata`):
 
   Or vice-versa (passing `"15:04:05"` will have the same effect as passing `"TimeOnly"`)
 
+Time is always returned and formatted in the UTC timezone, no matter what your local timezone is.
+
 #### Strings and URLs
 
 - `concatURL "base" "path1" "path2" ...`: Join URL parts together
@@ -167,6 +169,20 @@ Passing a `.Page` will decay into its frontmatter (`.Page.Metadata`):
   {{ .Page.Metadata.bio | markdownify }}
   ```
 - `replace str "old" "new"`: Replace every occurence of `old` with `new` in string `str`
+- `contains "string" "substring"`: Check if a string contains a substring
+- `startsWith "string" "prefix"`: Check if a string contains a prefix
+- `endsWith "string" "suffix"`: Check if a string contains a suffix
+- `repeat "string" count`: Repeat the string `count` times
+- `toUpper "string"`: Make a string uppercase
+- `toLower "string"`: Make a string lowercase
+- `title "string"`: Make all words start with a capital letter
+
+  e.g. `title "hello world"` -> `"Hello World"`
+
+- `strip "string"`: Remove all leading and trailing whitespace in a string
+- `split "string" "sep"`: Slice `string` into all substrings separated by `sep`
+- `fields "string"`: Split `string` around each instance of one or more consecutive whitespace characters
+- `count "string" "substr"`: Return the number of non-overlapping instances of `substr` in `string`
 
 #### Conditionals
 
@@ -188,14 +204,14 @@ Passing a `.Page` will decay into its frontmatter (`.Page.Metadata`):
   ```go-template
   <p>Today's greeting: {{ choice "Hello" "Welcome" "Greetings" "Howdy" }}!</p>
   ```
-- `shuffle $list`: Randomly shuffle a list (returns a copy)
+- `shuffle $slice`: Randomly shuffle a slice (returns a copy)
 
 #### Slice utilities
 
-- `first $list`: Get the first item of a slice
-- `last $list`: Get the last item of a slice
-- `reverse $list`: Return a new slice with the order of elements reversed
-- `contains $list item`: Check if a slice contains an item
+- `first $slice`: Get the first item of a slice
+- `last $slice`: Get the last item of a slice
+- `reverse $slice`: Return a new slice with the order of elements reversed
+- `contains $slice item`: Check if a slice contains an item
   ```go-template
   {{ if contains .Page.Metadata.tags "featured" }}
     <span class="featured-badge">Featured</span>

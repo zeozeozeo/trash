@@ -62,6 +62,8 @@ import (
 	"go.abhg.dev/goldmark/frontmatter"
 	"go.abhg.dev/goldmark/mermaid"
 	"go.abhg.dev/goldmark/mermaid/mermaidcdp"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 var (
@@ -630,17 +632,11 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 
 			return t.UTC().Format(realFormat)
 		},
-		"now": func() time.Time {
-			return time.Now().UTC()
-		},
+		"now": func() time.Time { return time.Now().UTC() },
 
 		// random utilities
-		"randint": func(min, max int) int {
-			return rand.IntN(max-min+1) + min
-		},
-		"randfloat": func(min, max float64) float64 {
-			return min + rand.Float64()*(max-min)
-		},
+		"randint":   func(min, max int) int { return rand.IntN(max-min+1) + min },
+		"randfloat": func(min, max float64) float64 { return min + rand.Float64()*(max-min) },
 		"choice": func(choices ...any) any {
 			if len(choices) == 0 {
 				return nil
@@ -668,9 +664,7 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 			u = u.JoinPath(elements...)
 			return u.String()
 		},
-		"joinPath": func(elem ...string) string {
-			return filepath.Join(elem...)
-		},
+		"joinPath": func(elem ...string) string { return filepath.Join(elem...) },
 		"truncate": func(s string, maxLength int) string {
 			if len(s) <= maxLength {
 				return s
@@ -690,9 +684,17 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 			}
 			return buf.String(), nil
 		},
-		"replace": func(s, old, new string) string {
-			return strings.ReplaceAll(s, old, new)
-		},
+		"replace":    func(s, old, new string) string { return strings.ReplaceAll(s, old, new) },
+		"startsWith": func(s, prefix string) bool { return strings.HasPrefix(s, prefix) },
+		"endsWith":   func(s, suffix string) bool { return strings.HasSuffix(s, suffix) },
+		"repeat":     func(s string, count int) string { return strings.Repeat(s, count) },
+		"toUpper":    func(s string) string { return strings.ToUpper(s) },
+		"toLower":    func(s string) string { return strings.ToLower(s) },
+		"title":      func(s string) string { return cases.Title(language.English).String(s) },
+		"strip":      func(s string) string { return strings.TrimSpace(s) },
+		"split":      func(s, sep string) []string { return strings.Split(s, sep) },
+		"fields":     func(s string) []string { return strings.Fields(s) },
+		"count":      func(s, substr string) int { return strings.Count(s, substr) },
 
 		// math utilities
 		"add":      func(a, b int) int { return a + b },
@@ -708,7 +710,20 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 		"min": func(a, b int) int { return min(a, b) },
 
 		// array utilities
-		"contains": func(slice []any, item any) bool { return slices.Contains(slice, item) },
+		"contains": func(value, item any) (bool, error) {
+			switch val := value.(type) {
+			case []any:
+				return slices.Contains(val, item), nil
+			case string:
+				str, ok := item.(string)
+				if !ok {
+					return false, fmt.Errorf("contains: item must be a string but got %T", item)
+				}
+				return strings.Contains(val, str), nil
+			default:
+				return false, fmt.Errorf("contains: unsupported type %T for value %v", value, value)
+			}
+		},
 		"first": func(slice []any) any {
 			if len(slice) == 0 {
 				return nil
@@ -730,9 +745,7 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 		},
 
 		// type conversion utilities
-		"toString": func(v any) string {
-			return fmt.Sprintf("%v", v)
-		},
+		"toString": func(v any) string { return fmt.Sprintf("%v", v) },
 		"toInt": func(v any) int {
 			switch val := v.(type) {
 			case int:
