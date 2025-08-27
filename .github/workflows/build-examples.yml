@@ -58,8 +58,11 @@ jobs:
           TRASH_NO_SANDBOX=1 ./trash build ./examples/blog
           TRASH_NO_SANDBOX=1 ./trash build ./examples/personal
           
-          mkdir -p _site
+          mkdir -p _site/blog/
+          mkdir -p _site/personal/
+
           cp examples/index.html _site/
+
           cp -r examples/blog/out/* _site/blog/
           cp -r examples/personal/out/* _site/personal/
 
