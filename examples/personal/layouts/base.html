@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ .Page.Metadata.title }}</title>
-    <link rel="stylesheet" href="{{ .Config.site.base }}/static/style.css">
-    <style>
-        {{ $base := default "" .Config.site.base }}
-        {{ readFile "static/style.css" | replace "BASE_URL" $base }}
-    </style>
+    <base href="{{ .Config.site.base }}/"></base>
+    <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
     <div class="sidebar">
