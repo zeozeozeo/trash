@@ -1,0 +1,111 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+a {
+  cursor: crosshair;
+  border: 1px solid transparent;
+  margin: 0px;
+}
+a:link {
+  color: #0090e0;
+}
+
+a:visited {
+  color: #0090e0;
+}
+
+a:hover {
+  color: #181818;
+  border: 1px solid transparent;
+  border-image: url("/ants.gif") 1 repeat;
+  background-color: #e6e6e6;
+}
+
+a:active {
+  color: #fff;
+}
+
+body {
+  font-family: "Fira Mono", monospace;
+  min-height: 100vh;
+}
+
+/* sidebar styles */
+.sidebar {
+  width: 200px;
+  background-color: #181818;
+  color: #f4f4f4;
+  position: fixed;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 1000;
+  padding: 16px;
+}
+
+hr {
+  border-style: dotted;
+  border-width: 1px 0 0 0;
+  margin: 8px 0 8px 0;
+}
+
+.sidebar-nav li {
+  list-style: none;
+}
+
+.sidebar-nav a {
+  text-decoration: none;
+}
+
+/* main content */
+.main {
+  flex: 1;
+  margin-left: 250px;
+  padding: 20px;
+  width: 700px;
+}
+
+header h1 {
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #ddd;
+}
+
+/* responsiveness */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    border-right: none;
+    border-bottom: 1px dashed #ddd;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 10px;
+  }
+
+  .sidebar-nav ul {
+    display: flex;
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .sidebar-nav li {
+    margin: 0;
+  }
+
+  .sidebar-nav a {
+    padding: 10px;
+    text-align: center;
+  }
+
+  .main {
+    margin-left: 0;
+    padding: 10px;
+  }
+}

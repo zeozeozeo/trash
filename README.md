@@ -57,6 +57,9 @@ You should still refer to the [source code](./main.go) instead of this if possib
   ```go-template
   {{ $posts := readDir "posts" }}
   ```
+- `listDir "path"`: List directory entries, use `.Name` and `.IsDir` on returned values
+
+  used in [personal example](./examples/personal/layouts/base.html)
 - `readFile "path"`: Read a file from the project root
   ```go-template
   <style>{{ readFile "static/style.css" }}</style>
@@ -265,19 +268,19 @@ All templates under the `layouts` directory are created in the same context, so 
 <!-- layouts/base.html (this is the default layout) --->
 <!DOCTYPE html>
 <html lang="en">
-{{ template "boilerplate.html" }}
-<body>
+  {{ template "boilerplate.html" }}
+  <body>
     {{ .Page.Content }}
-</body>
+  </body>
 </html>
 ```
 
 ```html
 <!-- layouts/boilerplate.html --->
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Blog</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Blog</title>
 </head>
 ```
 

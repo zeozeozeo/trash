@@ -522,6 +522,11 @@ func getValueByPath(item any, path string) any {
 	return nil
 }
 
+type DirEntry struct {
+	Name  string
+	IsDir bool
+}
+
 func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 	return text_template.FuncMap{
 		// FS utilities
@@ -534,6 +539,20 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 				}
 			}
 			return results
+		},
+		"listDir": func(dir string) ([]DirEntry, error) {
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				return nil, err
+			}
+			results := make([]DirEntry, 0, len(entries))
+			for _, entry := range entries {
+				results = append(results, DirEntry{
+					Name:  entry.Name(),
+					IsDir: entry.IsDir(),
+				})
+			}
+			return results, nil
 		},
 		"readFile": func(path string) (string, error) {
 			cleanPath := filepath.Clean(path)
@@ -611,6 +630,9 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 			}
 			u = u.JoinPath(elements...)
 			return u.String()
+		},
+		"joinPath": func(elem ...string) string {
+			return filepath.Join(elem...)
 		},
 		"truncate": func(s string, maxLength int) string {
 			if len(s) <= maxLength {
@@ -894,12 +916,10 @@ func build(isServing, copyStatic bool) {
 
 	if err := ctx.discoverAndParsePages(); err != nil {
 		printerr("Failed to discover pages: %v", err)
-		os.Exit(1)
 	}
 
 	if err := ctx.loadTemplates(); err != nil {
 		printerr("Failed to load templates: %v", err)
-		os.Exit(1)
 	}
 
 	for _, page := range ctx.Site.Pages {

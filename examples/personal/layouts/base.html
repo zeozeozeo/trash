@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Page.Metadata.title }}</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="sidebar">
+        <nav class="sidebar-nav">
+            <ul>
+                {{ $nav := listDir "pages" | where "IsDir" true }}
+                {{- range $nav }}
+                    <hr>
+                    {{ .Name }}:
+                    {{- range readDir .Name | sortBy "order" "asc" }}
+                        <li>
+                            <a href="{{ with .Metadata.redirect }}{{ . }}{{ else }}{{ .Permalink }}{{ end }}" {{ if .Metadata.redirect }} target="_blank" {{ end }}>
+                                {{ .Metadata.title }}
+                            </a>
+                        </li>
+                    {{- end}}
+                {{- end }}
+            </ul>
+        </nav>
+    </div>
+    <div class="main">
+        <header>
+            <h1>{{ .Page.Metadata.title }}</h1>
+        </header>
+        <main>
+            {{ .Page.Content }}
+        </main>
+
+        {{ template "footer.html" }}
+    </div>
+
+    {{ if .IsServing }}
+    <script>
+        const socket = new WebSocket("ws://" + window.location.host + "/ws");
+        socket.addEventListener("message", (event) => {
+            if (event.data === "reload") {
+                window.location.reload();
+            }
+        });
+        socket.addEventListener("close", () => {
+            console.log("Live reload connection lost. Please refresh manually.");
+        });
+    </script>
+    {{ end }}
+</body>
+</html>

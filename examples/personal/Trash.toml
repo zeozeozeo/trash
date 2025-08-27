@@ -1,0 +1,5 @@
+# The structure of this config file is not forced upon you, it is just useful to
+# have the permalink/other configuration stored somewhere so you can access it in templates
+
+[site]
+url = "https://example.com/" # Access this like {{ .Config.site.url }}
