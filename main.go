@@ -690,6 +690,9 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 			}
 			return buf.String(), nil
 		},
+		"replace": func(s, old, new string) string {
+			return strings.ReplaceAll(s, old, new)
+		},
 
 		// math utilities
 		"add":      func(a, b int) int { return a + b },
