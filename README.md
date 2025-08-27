@@ -5,6 +5,8 @@ Trash - a stupid, simple website compiler.
 > [!CAUTION]
 > Nothing is stabilized yet, so existing pages may break from time to time, do not use this for anything serious
 
+This readme is more of a reference; if you want pretty pictures, go see the ones in [examples](/examples/).
+
 ## Features
 
 - $LaTeX$ expressions (no client-side JS!)
@@ -60,6 +62,7 @@ You should still refer to the [source code](./main.go) instead of this if possib
 - `listDir "path"`: List directory entries, use `.Name` and `.IsDir` on returned values
 
   used in [personal example](./examples/personal/layouts/base.html)
+
 - `readFile "path"`: Read a file from the project root
   ```go-template
   <style>{{ readFile "static/style.css" }}</style>
