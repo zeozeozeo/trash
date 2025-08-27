@@ -1044,13 +1044,13 @@ func (ctx *buildContext) discoverAndParsePages() error {
 				if dir == "." {
 					dir = ""
 				}
-				page.Permalink = "/" + dir + "/"
+				page.Permalink = dir + "/"
 			} else {
 				outPath := strings.TrimSuffix(relPath, filepath.Ext(relPath))
-				page.Permalink = "/" + filepath.ToSlash(outPath) + ".html"
+				page.Permalink = filepath.ToSlash(outPath) + ".html"
 			}
 		} else {
-			page.Permalink = "/" + filepath.ToSlash(relPath)
+			page.Permalink = filepath.ToSlash(relPath)
 		}
 
 		if mermaidCompiler == nil && strings.Contains(page.RawContent, "```mermaid") {
