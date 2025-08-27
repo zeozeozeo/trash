@@ -55,8 +55,8 @@ jobs:
 
       - name: Configure Base URL for Examples
         run: |
-          sed -i '/^\[site\]/a base = "\/blog"' examples/blog/Trash.toml
-          sed -i '/^\[site\]/a base = "\/personal"' examples/personal/Trash.toml
+          sed -i '/^\[site\]/a base = "\/trash\/blog"' examples/blog/Trash.toml
+          sed -i '/^\[site\]/a base = "\/trash\/personal"' examples/personal/Trash.toml
           
       - name: Build Examples
         run: |
