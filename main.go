@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -385,8 +386,18 @@ type TemplateData struct {
 	IsServing bool
 }
 
-func initMermaidCDP() {
-	var err error
+var hasMmdc bool
+
+func maybeInitMermaidCDP() {
+	if hasMmdc {
+		return
+	}
+	_, err := exec.LookPath("mmdc")
+	if err == nil {
+		hasMmdc = true
+		return
+	}
+
 	mermaidCompiler, err = mermaidcdp.New(&mermaidcdp.Config{
 		JSSource: mermaidJSSource,
 	})
@@ -1039,7 +1050,7 @@ func (ctx *buildContext) discoverAndParsePages() error {
 		}
 
 		if mermaidCompiler == nil && strings.Contains(page.RawContent, "```mermaid") {
-			initMermaidCDP()
+			maybeInitMermaidCDP()
 		}
 
 		allPages = append(allPages, page)
@@ -1212,6 +1223,10 @@ func createMarkdownParser(mermaidTheme string, d2Sketch bool, d2Theme int64, pik
 	if anchorText != nil {
 		texter = &anchorTexter{text: []byte(*anchorText)}
 	}
+	var compiler mermaid.Compiler
+	if mermaidCompiler != nil {
+		compiler = mermaidCompiler
+	}
 	return goldmark.New(
 		goldmark.WithRendererOptions(html.WithUnsafe()),
 		goldmark.WithParserOptions(
@@ -1229,7 +1244,7 @@ func createMarkdownParser(mermaidTheme string, d2Sketch bool, d2Theme int64, pik
 			&frontmatter.Extender{},
 			&d2.Extender{Sketch: d2Sketch, ThemeID: d2ThemeId},
 			&mermaid.Extender{
-				Compiler: mermaidCompiler,
+				Compiler: compiler,
 				Theme:    mermaidTheme,
 			},
 			&pikchr.Extender{DarkMode: pikchrDarkMode},
