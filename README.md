@@ -5,7 +5,7 @@ Trash - a stupid, simple website compiler.
 > [!CAUTION]
 > Nothing is stabilized yet, so existing pages may break from time to time, do not use this for anything serious
 
-This readme is more of a reference; if you want pretty pictures, go see the ones in [examples](/examples/).
+This readme is more of a reference; if you want pretty pictures, go see the ones in [examples](/examples/) (or see [hosted version](https://zeozeozeo.github.io/trash/)).
 
 ## Features
 
@@ -175,10 +175,7 @@ Time is always returned and formatted in the UTC timezone, no matter what your l
 - `repeat "string" count`: Repeat the string `count` times
 - `toUpper "string"`: Make a string uppercase
 - `toLower "string"`: Make a string lowercase
-- `title "string"`: Make all words start with a capital letter
-
-  e.g. `title "hello world"` -> `"Hello World"`
-
+- `title "string"`: Make all words start with a capital letter, e.g. `title "hello world"` -> `"Hello World"`
 - `strip "string"`: Remove all leading and trailing whitespace in a string
 - `split "string" "sep"`: Slice `string` into all substrings separated by `sep`
 - `fields "string"`: Split `string` around each instance of one or more consecutive whitespace characters
