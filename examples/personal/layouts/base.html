@@ -10,6 +10,7 @@
     <div class="sidebar">
         <nav class="sidebar-nav">
             <ul>
+                <li><a href="/">home</a></li>
                 {{ $nav := listDir "pages" | where "IsDir" true }}
                 {{- range $nav }}
                     <hr>
