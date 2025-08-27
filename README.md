@@ -166,6 +166,7 @@ Passing a `.Page` will decay into its frontmatter (`.Page.Metadata`):
   ```go-template
   {{ .Page.Metadata.bio | markdownify }}
   ```
+- `replace str "old" "new"`: Replace every occurence of `old` with `new` in string `str`
 
 #### Conditionals
 
