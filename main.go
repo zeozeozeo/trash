@@ -69,8 +69,8 @@ import (
 var (
 	//go:embed mermaid.min.js
 	mermaidJSSource string
-
 	mermaidCompiler *mermaidcdp.Compiler
+	noSandbox       = os.Getenv("TRASH_NO_SANDBOX") != ""
 )
 
 func usage() {
@@ -391,7 +391,7 @@ type TemplateData struct {
 
 var hasMmdc bool
 
-func maybeInitMermaidCDP() {
+func maybeInitMermaidCDP(theme string) {
 	if hasMmdc {
 		return
 	}
@@ -402,7 +402,9 @@ func maybeInitMermaidCDP() {
 	}
 
 	mermaidCompiler, err = mermaidcdp.New(&mermaidcdp.Config{
-		JSSource: mermaidJSSource,
+		JSSource:  mermaidJSSource,
+		NoSandbox: noSandbox,
+		Theme:     theme,
 	})
 	if err != nil {
 		printerr("Failed to initialize Mermaid with CDP: %v; falling back to clientside JS", err)
@@ -1067,7 +1069,7 @@ func (ctx *buildContext) discoverAndParsePages() error {
 		}
 
 		if mermaidCompiler == nil && strings.Contains(page.RawContent, "```mermaid") {
-			maybeInitMermaidCDP()
+			maybeInitMermaidCDP(queryMapOrDefault(ctx.Config, "", "mermaid", "theme"))
 		}
 
 		allPages = append(allPages, page)
@@ -1235,7 +1237,7 @@ type mermaidCliBuilder struct{}
 
 func (cli mermaidCliBuilder) CommandContext(ctx context.Context, args ...string) *exec.Cmd {
 	// workaround for https://github.com/abhinav/goldmark-mermaid/issues/141
-	if os.Getenv("TRASH_NO_SANDBOX") != "" {
+	if noSandbox {
 		const puppeteerConfig = "puppeteer-config.json"
 		_, err := os.Stat(puppeteerConfig)
 		if err != nil {
