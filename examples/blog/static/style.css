@@ -95,6 +95,8 @@ code {
   padding: 0.2rem 0.4rem;
   color: var(--gruvbox-light2);
   font-size: 0.9rem;
+  tab-size: 4;
+  -moz-tab-size: 4;
 }
 
 pre {

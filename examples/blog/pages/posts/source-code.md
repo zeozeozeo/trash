@@ -8,6 +8,8 @@ date: "2025-08-22"
 
 {{ if pathExists $sourcePath }}
 
+<!-- It might be tempting to `replace` \t with 4 spaces, but you should prefer `tab-size: 4; -moz-tab-size: 4;` in CSS */}} -->
+
 ```go
 {{ readFile $sourcePath }}
 ```
