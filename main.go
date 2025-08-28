@@ -594,12 +594,12 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 			return results, nil
 		},
 		"readFile": func(path string) (string, error) {
-			cleanPath := filepath.Clean(path)
-			if strings.HasPrefix(cleanPath, "..") {
-				return "", fmt.Errorf("path cannot be outside the project directory")
-			}
-			content, err := os.ReadFile(cleanPath)
+			content, err := os.ReadFile(filepath.Clean(path))
 			return string(content), err
+		},
+		"pathExists": func(path string) bool {
+			_, err := os.Stat(filepath.Clean(path))
+			return err == nil
 		},
 
 		// time utilities

@@ -59,11 +59,11 @@ You should still refer to the [source code](./main.go) instead of this if possib
 - `listDir "path"`: List directory entries, use `.Name` and `.IsDir` on returned values
 
   used in [personal example](./examples/personal/layouts/base.html)
-
 - `readFile "path"`: Read a file from the project root
   ```go-template
   <style>{{ readFile "static/style.css" }}</style>
   ```
+- `pathExists "path"`: Return true if a file, directory or symlink exists under `path`
 
 #### Dict operations
 
