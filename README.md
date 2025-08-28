@@ -59,6 +59,7 @@ You should still refer to the [source code](./main.go) instead of this if possib
 - `listDir "path"`: List directory entries, use `.Name` and `.IsDir` on returned values
 
   used in [personal example](./examples/personal/layouts/base.html)
+
 - `readFile "path"`: Read a file from the project root
   ```go-template
   <style>{{ readFile "static/style.css" }}</style>
@@ -299,3 +300,77 @@ All templates under the `layouts` directory are created in the same context, so 
 ```
 
 This is not the case for `.md` filles inside the `pages` directory.
+
+## Hosting on GitHub Pages
+
+Since Trash generates a static website, you can use [GitHub Pages](https://docs.github.com/en/pages) to host it for free directly from your GitHub repo. Here's a tutorial:
+
+1. Create a new repository
+2. Go to <kbd>Settings</kbd> > <kbd>Pages</kbd> (in sidebar) > <kbd>Source</kbd> > select "GitHub Actions" in the dropdown (change from "Deploy from a branch")
+3. Create `.github/workflows/build.yml`:
+
+   ```yml
+   name: Build and Deploy Page
+
+   on:
+     push:
+       branches:
+         - main # change to the branch you want to deploy from
+       # you can use `paths:` to only run on changes in set path
+     workflow_dispatch:
+     pull_request:
+       branches:
+         - main # change to the branch you want to deploy from
+
+   permissions:
+     contents: read
+     pages: write
+     id-token: write
+
+   concurrency:
+     group: ${{ github.workflow }}-${{ github.ref }}
+     cancel-in-progress: true
+
+   jobs:
+     build:
+       runs-on: ubuntu-latest
+       steps:
+         - name: Checkout
+           uses: actions/checkout@v4
+
+         - name: Setup Go
+           uses: actions/setup-go@v4
+           with:
+             go-version: "^1.25.0"
+
+         - name: Setup Trash
+           run: go install github.com/zeozeozeo/trash@latest
+
+         - name: Build Site
+           run: |
+             TRASH_NO_SANDBOX=1 ./trash build .
+
+         - name: Setup Pages
+           uses: actions/configure-pages@v4
+
+         - name: Upload artifact
+           uses: actions/upload-pages-artifact@v4
+           with:
+             path: ./out
+
+     deploy:
+       if: github.ref == 'refs/heads/main' # change "main" to the branch you want to deploy from
+       environment:
+         name: github-pages
+         url: ${{ steps.deployment.outputs.page_url }}
+       runs-on: ubuntu-latest
+       needs: build
+       steps:
+         - name: Deploy to GitHub Pages
+           id: deployment
+           uses: actions/deploy-pages@v4
+   ```
+
+4. After the `deploy` step finishes, the page should be live at `https://<your_github_username>.github.io/<your_repo_name>`
+
+By deploying the site directly from GitHub Actions, we get rid of the need to host the `out` directory in the repository.
