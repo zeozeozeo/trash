@@ -2,9 +2,6 @@
 
 Trash - a stupid, simple website compiler.
 
-> [!CAUTION]
-> Nothing is stabilized yet, so existing pages may break from time to time, do not use this for anything serious
-
 This readme is more of a reference; if you want pretty pictures, go see the ones in [examples](/examples/) (or see [hosted version](https://zeozeozeo.github.io/trash/)).
 
 ## Features
