@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"io"
 	"maps"
+	"math"
 	"math/rand/v2"
 	"net/http"
 	"net/url"
@@ -563,6 +564,24 @@ func getValueByPath(item any, path string) any {
 	return nil
 }
 
+func mathOp(a, b any, intOp func(int, int) int, floatOp func(float64, float64) float64) (any, error) {
+	av := reflect.ValueOf(a)
+	bv := reflect.ValueOf(b)
+
+	if av.Kind() != bv.Kind() {
+		return nil, fmt.Errorf("type mismatch")
+	}
+
+	switch av.Kind() {
+	case reflect.Int:
+		return intOp(av.Interface().(int), bv.Interface().(int)), nil
+	case reflect.Float64:
+		return floatOp(av.Interface().(float64), bv.Interface().(float64)), nil
+	default:
+		return nil, fmt.Errorf("unsupported type")
+	}
+}
+
 type DirEntry struct {
 	Name  string
 	IsDir bool
@@ -637,8 +656,27 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 		"now": func() time.Time { return time.Now().UTC() },
 
 		// random utilities
-		"randint":   func(min, max int) int { return rand.IntN(max-min+1) + min },
-		"randfloat": func(min, max float64) float64 { return min + rand.Float64()*(max-min) },
+		"rand": func(a, b any) (any, error) {
+			av := reflect.ValueOf(a)
+			bv := reflect.ValueOf(b)
+
+			switch av.Kind() {
+			case reflect.Int:
+				if bv.Kind() != reflect.Int {
+					return nil, fmt.Errorf("rand expects both arguments to be same type")
+				}
+				min, max := av.Int(), bv.Int()
+				return rand.IntN(int(max-min+1)) + int(min), nil
+			case reflect.Float64:
+				if bv.Kind() != reflect.Float64 {
+					return nil, fmt.Errorf("rand expects both arguments to be same type")
+				}
+				min, max := av.Float(), bv.Float()
+				return min + rand.Float64()*(max-min), nil
+			default:
+				return nil, fmt.Errorf("rand requires int or float64 arguments")
+			}
+		},
 		"choice": func(choices ...any) any {
 			if len(choices) == 0 {
 				return nil
@@ -699,17 +737,40 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
 		"count":      func(s, substr string) int { return strings.Count(s, substr) },
 
 		// math utilities
-		"add":      func(a, b int) int { return a + b },
-		"subtract": func(a, b int) int { return a - b },
-		"multiply": func(a, b int) int { return a * b },
-		"divide": func(a, b int) int {
-			if b == 0 {
-				return 0
-			}
-			return a / b
+		"add": func(a, b any) (any, error) {
+			return mathOp(a, b, func(ai, bi int) int { return ai + bi }, func(af, bf float64) float64 { return af + bf })
 		},
-		"max": func(a, b int) int { return max(a, b) },
-		"min": func(a, b int) int { return min(a, b) },
+		"subtract": func(a, b any) (any, error) {
+			return mathOp(a, b, func(ai, bi int) int { return ai - bi }, func(af, bf float64) float64 { return af - bf })
+		},
+		"multiply": func(a, b any) (any, error) {
+			return mathOp(a, b, func(ai, bi int) int { return ai * bi }, func(af, bf float64) float64 { return af * bf })
+		},
+		"divide": func(a, b any) (any, error) {
+			return mathOp(a, b,
+				func(ai, bi int) int {
+					if bi == 0 {
+						return 0
+					}
+					return ai / bi
+				},
+				func(af, bf float64) float64 {
+					if bf == 0 {
+						return 0
+					}
+					return af / bf
+				})
+		},
+		"max": func(a, b any) (any, error) {
+			return mathOp(a, b,
+				func(ai, bi int) int { return max(ai, bi) },
+				func(af, bf float64) float64 { return math.Max(af, bf) })
+		},
+		"min": func(a, b any) (any, error) {
+			return mathOp(a, b,
+				func(ai, bi int) int { return min(ai, bi) },
+				func(af, bf float64) float64 { return math.Min(af, bf) })
+		},
 
 		// array utilities
 		"contains": func(value, item any) (bool, error) {

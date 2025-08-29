@@ -192,9 +192,8 @@ Time is always returned and formatted in the UTC timezone, no matter what your l
 
 #### Math and random
 
-- `add`, `subtract`, `multiply`, `divide`, `max`, `min`: Operations on integers
-- `randint min max`: A random integer in a range
-- `randfloat min max`: A random float in a range
+- `add`, `subtract`, `multiply`, `divide`, `max`, `min`: Operations on integers and floats
+- `rand min max`: A random integer or float in range
 - `choice item1 item2 ...`: Randomly select one item from the list of arguments provided
   ```go-template
   <p>Today's greeting: {{ choice "Hello" "Welcome" "Greetings" "Howdy" }}!</p>
