@@ -48,7 +48,7 @@ import (
 	"github.com/tdewolff/minify/v2/css"
 	minifyHtml "github.com/tdewolff/minify/v2/html"
 	"github.com/tdewolff/minify/v2/js"
-	minify_json "github.com/tdewolff/minify/v2/json"
+	minifyJson "github.com/tdewolff/minify/v2/json"
 	"github.com/tdewolff/minify/v2/svg"
 	"github.com/tdewolff/minify/v2/xml"
 	treeblood "github.com/wyatt915/goldmark-treeblood"
@@ -418,11 +418,11 @@ func newMinifier() *minify.M {
 	m.AddFunc("text/html", minifyHtml.Minify)
 	m.AddFunc("image/svg+xml", svg.Minify)
 	m.AddFuncRegexp(regexp.MustCompile("^(application|text)/(x-)?(java|ecma)script$"), js.Minify)
-	m.AddFuncRegexp(regexp.MustCompile("[/+]json$"), minify_json.Minify)
+	m.AddFuncRegexp(regexp.MustCompile("[/+]json$"), minifyJson.Minify)
 	m.AddFuncRegexp(regexp.MustCompile("[/+]xml$"), xml.Minify)
 
-	m.AddFunc("importmap", minify_json.Minify)
-	m.AddFunc("speculationrules", minify_json.Minify)
+	m.AddFunc("importmap", minifyJson.Minify)
+	m.AddFunc("speculationrules", minifyJson.Minify)
 
 	aspMinifier := &minifyHtml.Minifier{}
 	aspMinifier.TemplateDelims = [2]string{"<%", "%>"}
