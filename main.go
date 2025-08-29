@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	text_template "text/template"
+	textTemplate "text/template"
 	"time"
 
 	_ "embed"
@@ -587,8 +587,8 @@ type DirEntry struct {
 	IsDir bool
 }
 
-func (ctx *buildContext) stdFuncMap(allPages []*Page) text_template.FuncMap {
-	return text_template.FuncMap{
+func (ctx *buildContext) stdFuncMap(allPages []*Page) textTemplate.FuncMap {
+	return textTemplate.FuncMap{
 		// FS utilities
 		"readDir": func(dir string) []*Page {
 			var results []*Page
@@ -1173,7 +1173,7 @@ func (ctx *buildContext) compileAndRenderPage(page *Page) error {
 		)
 	}
 
-	tmpl, err := text_template.New(page.SourcePath).Funcs(ctx.stdFuncMap(ctx.Site.Pages)).Parse(page.RawContent)
+	tmpl, err := textTemplate.New(page.SourcePath).Funcs(ctx.stdFuncMap(ctx.Site.Pages)).Parse(page.RawContent)
 	if err != nil {
 		return fmt.Errorf("failed to parse markdown template: %w", err)
 	}
