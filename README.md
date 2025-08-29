@@ -372,4 +372,13 @@ Since Trash generates a static website, you can use [GitHub Pages](https://docs.
 
 4. After the `deploy` step finishes, the page should be live at `https://<your_github_username>.github.io/<your_repo_name>`
 
+> [!NOTE]
+> If you are using Mermaid diagrams, CI can be a little bit flaky. If you are getting the following errors when building the site:
+> ```
+> error: Failed to initialize Mermaid with CDP: set up headless browser: websocket url timeout reached; falling back to clientside JS
+> error: Failed to process page pages/posts/trash-demo.md: failed to convert markdown: generate svg: mmdc: exec: "mmdc": executable file not found in $PATH
+> ```
+> that means that it hasn't fully compiled and some pages will be missing. In that case, just re-run the build (for some reason Chrome is particularly slow in the runners). If that doesn't fix it, you can add a build step to install Node.js and `npm install -g @mermaid-js/mermaid-cli` to install `mmdc`. It shouldn't fail, but CDP is still preferred since `mmdc` generates SVGs with an opaque background.
+
+
 By deploying the site directly from GitHub Actions, we get rid of the need to host the `out` directory in the repository.
