@@ -190,6 +190,8 @@ Trash fully supports all extensions of [GitHub Flavored Markdown](https://github
 
 This is a test of the typographer extension -- this should've been an em dash `--`, <<this should be in quotation marks>>, "this should be in quotes" and this should be an ellipsis...
 
+-# This is some small subtext.
+
 #### East Asian line breaks
 
 小马宝莉的朋友们  

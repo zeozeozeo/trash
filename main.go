@@ -59,6 +59,7 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
+	subtext "github.com/zeozeozeo/goldmark-subtext"
 	"go.abhg.dev/goldmark/anchor"
 	"go.abhg.dev/goldmark/frontmatter"
 	"go.abhg.dev/goldmark/mermaid"
@@ -1376,6 +1377,7 @@ func createMarkdownParser(mermaidTheme string, d2Sketch bool, d2Theme int64, pik
 				Texter:   texter,
 				Position: anchorPosition,
 			},
+			subtext.New(),
 		),
 	)
 }

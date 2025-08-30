@@ -59,6 +59,7 @@ require (
 	github.com/stefanfritsch/goldmark-fences v1.0.0
 	github.com/wyatt915/goldmark-treeblood v0.0.0-20250825231212-5dcbdb2f4b57
 	github.com/yuin/goldmark v1.7.13
+	github.com/zeozeozeo/goldmark-subtext v0.0.0-20250830051911-6f25dde7f0c2
 	go.abhg.dev/goldmark/anchor v0.2.0
 	go.abhg.dev/goldmark/mermaid v0.6.0
 	golang.org/x/sys v0.35.0 // indirect
