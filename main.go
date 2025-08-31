@@ -40,10 +40,6 @@ import (
 	pikchr "github.com/jchenry/goldmark-pikchr"
 	figure "github.com/mangoumbrella/goldmark-figure"
 	"github.com/pelletier/go-toml/v2"
-	enclave "github.com/zeozeozeo/goldmark-enclave"
-	enclaveCallout "github.com/zeozeozeo/goldmark-enclave/callout"
-	enclaveCore "github.com/zeozeozeo/goldmark-enclave/core"
-	enclaveMark "github.com/zeozeozeo/goldmark-enclave/mark"
 	fences "github.com/stefanfritsch/goldmark-fences"
 	"github.com/tdewolff/minify/v2"
 	"github.com/tdewolff/minify/v2/css"
@@ -60,6 +56,10 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
+	enclave "github.com/zeozeozeo/goldmark-enclave"
+	enclaveCallout "github.com/zeozeozeo/goldmark-enclave/callout"
+	enclaveCore "github.com/zeozeozeo/goldmark-enclave/core"
+	enclaveMark "github.com/zeozeozeo/goldmark-enclave/mark"
 	subtext "github.com/zeozeozeo/goldmark-subtext"
 	"go.abhg.dev/goldmark/anchor"
 	"go.abhg.dev/goldmark/frontmatter"
@@ -1149,30 +1149,7 @@ func (ctx *buildContext) discoverAndParsePages() error {
 
 func (ctx *buildContext) compileAndRenderPage(page *Page) error {
 	if ctx.MarkdownParser == nil {
-		var anchorText *string
-		if text, exists := queryMap(ctx.Config, "anchor", "text"); exists {
-			if str, ok := text.(string); ok {
-				anchorText = &str
-			} else {
-				anchorText = nil
-			}
-		} else {
-			anchorText = nil
-		}
-
-		anchorPosition := anchor.After
-		if queryMapOrDefault(ctx.Config, "", "anchor", "position") == "before" {
-			anchorPosition = anchor.Before
-		}
-
-		ctx.MarkdownParser = createMarkdownParser(
-			queryMapOrDefault(ctx.Config, "", "mermaid", "theme"),
-			queryMapOrDefault(ctx.Config, true, "d2", "sketch"),
-			queryMapOrDefault[int64](ctx.Config, -1, "d2", "theme"),
-			queryMapOrDefault(ctx.Config, false, "pikchr", "dark"),
-			anchorText,
-			anchorPosition,
-		)
+		ctx.MarkdownParser = createMarkdownParser(ctx.Config)
 	}
 
 	tmpl, err := textTemplate.New(page.SourcePath).Funcs(ctx.stdFuncMap(ctx.Site.Pages)).Parse(page.RawContent)
@@ -1326,7 +1303,24 @@ func (cli mermaidCliBuilder) CommandContext(ctx context.Context, args ...string)
 	return exec.CommandContext(ctx, "mmdc", args...)
 }
 
-func createMarkdownParser(mermaidTheme string, d2Sketch bool, d2Theme int64, pikchrDarkMode bool, anchorText *string, anchorPosition anchor.Position) goldmark.Markdown {
+func createMarkdownParser(config map[string]any) goldmark.Markdown {
+	var anchorText *string
+	if text, exists := queryMap(config, "anchor", "text"); exists {
+		if str, ok := text.(string); ok {
+			anchorText = &str
+		} else {
+			anchorText = nil
+		}
+	} else {
+		anchorText = nil
+	}
+
+	anchorPosition := anchor.After
+	if queryMapOrDefault(config, "", "anchor", "position") == "before" {
+		anchorPosition = anchor.Before
+	}
+
+	d2Theme := queryMapOrDefault[int64](config, -1, "d2", "theme")
 	var d2ThemeId *int64
 	if d2Theme >= 0 {
 		d2ThemeId = &d2Theme
@@ -1339,48 +1333,50 @@ func createMarkdownParser(mermaidTheme string, d2Sketch bool, d2Theme int64, pik
 	if mermaidCompiler != nil {
 		compiler = mermaidCompiler
 	}
+
+	extensions := []goldmark.Extender{
+		extension.GFM,
+		extension.DefinitionList,
+		extension.Footnote,
+		extension.Typographer,
+		extension.CJK,
+		emoji.Emoji,
+		treeblood.MathML(),
+		&frontmatter.Extender{},
+		&d2.Extender{Sketch: queryMapOrDefault(config, true, "d2", "sketch"), ThemeID: d2ThemeId},
+		&mermaid.Extender{
+			Compiler: compiler,
+			CLI:      &mermaidCliBuilder{},
+			Theme:    queryMapOrDefault(config, "", "mermaid", "theme"),
+		},
+		&pikchr.Extender{DarkMode: queryMapOrDefault(config, false, "pikchr", "dark")},
+		enclave.New(&enclaveCore.Config{}),
+		enclaveCallout.New(),
+		enclaveMark.New(),
+		&fences.Extender{},
+		figure.Figure,
+		&anchor.Extender{
+			Texter:   texter,
+			Position: anchorPosition,
+		},
+		subtext.New(),
+	}
+
+	if queryMapOrDefault(config, true, "highlight", "enabled") {
+		extensions = append(extensions, highlighting.NewHighlighting(
+			highlighting.WithFormatOptions(
+				chromahtml.ClassPrefix(queryMapOrDefault(config, "highlight-", "highlight", "prefix")),
+				chromahtml.WithClasses(true),
+				chromahtml.WithLineNumbers(queryMapOrDefault(config, false, "highlight", "gutter", "enabled")),
+				chromahtml.LineNumbersInTable(queryMapOrDefault(config, false, "highlight", "gutter", "table")),
+			),
+		))
+	}
+
 	return goldmark.New(
 		goldmark.WithRendererOptions(html.WithUnsafe()),
-		goldmark.WithParserOptions(
-			parser.WithAutoHeadingID(),
-			parser.WithAttribute(),
-		),
-		goldmark.WithExtensions(
-			extension.GFM,
-			extension.DefinitionList,
-			extension.Footnote,
-			extension.Typographer,
-			extension.CJK,
-			emoji.Emoji,
-			treeblood.MathML(),
-			&frontmatter.Extender{},
-			&d2.Extender{Sketch: d2Sketch, ThemeID: d2ThemeId},
-			&mermaid.Extender{
-				Compiler: compiler,
-				CLI:      &mermaidCliBuilder{},
-				Theme:    mermaidTheme,
-			},
-			&pikchr.Extender{DarkMode: pikchrDarkMode},
-			enclave.New(&enclaveCore.Config{}),
-			enclaveCallout.New(),
-			enclaveMark.New(),
-			highlighting.NewHighlighting(
-				highlighting.WithFormatOptions(
-					chromahtml.ClassPrefix("highlight-"),
-					chromahtml.WithClasses(true),
-					chromahtml.WithAllClasses(true),
-					chromahtml.LineNumbersInTable(false),
-					chromahtml.WithLineNumbers(false),
-				),
-			),
-			&fences.Extender{},
-			figure.Figure,
-			&anchor.Extender{
-				Texter:   texter,
-				Position: anchorPosition,
-			},
-			subtext.New(),
-		),
+		goldmark.WithParserOptions(parser.WithAutoHeadingID(), parser.WithAttribute()),
+		goldmark.WithExtensions(extensions...),
 	)
 }
 

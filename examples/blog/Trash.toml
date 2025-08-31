@@ -16,7 +16,3 @@ theme = 200   # see available themes at https://d2lang.com/tour/themes/
 
 [pikchr]
 dark = true # change pikchr colors to assume a dark-mode theme
-
-# [anchor]
-# text = "#"          # change the ¶ character in anchors to something else
-# position = "before" # default is "after", where to place the anchor

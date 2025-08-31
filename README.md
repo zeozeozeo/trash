@@ -250,6 +250,14 @@ dark = true # change pikchr colors to assume a dark-mode theme
 [anchor]
 text = "#"          # change the ¶ character in auto-anchors to something else
 position = "before" # default is "after", where to place the anchor
+
+[highlight]
+enabled = true        # whether to enable code highlighting (default: true)
+prefix = "highlight-" # CSS class prefix to use, this is the default
+
+[highlight.gutter]
+enabled = true # whether to show line numbers (default: false)
+table = true   # whether to separate code and line numbers using a <td>, copy-paste friendly (default: false)
 ```
 
 Aside from this, you can add your own fields, and access them in templates:
@@ -374,11 +382,12 @@ Since Trash generates a static website, you can use [GitHub Pages](https://docs.
 
 > [!NOTE]
 > If you are using Mermaid diagrams, CI can be a little bit flaky. If you are getting the following errors when building the site:
+>
 > ```
 > error: Failed to initialize Mermaid with CDP: set up headless browser: websocket url timeout reached; falling back to clientside JS
 > error: Failed to process page pages/posts/trash-demo.md: failed to convert markdown: generate svg: mmdc: exec: "mmdc": executable file not found in $PATH
 > ```
+>
 > that means that it hasn't fully compiled and some pages will be missing. In that case, just re-run the build (for some reason Chrome is particularly slow in the runners). If that doesn't fix it, you can add a build step to install Node.js and `npm install -g @mermaid-js/mermaid-cli` to install `mmdc`. It shouldn't fail, but CDP is still preferred since `mmdc` generates SVGs with an opaque background.
-
 
 By deploying the site directly from GitHub Actions, we get rid of the need to host the `out` directory in the repository.

@@ -93,7 +93,7 @@ box same "Pikchr" "Formatter" "(pikchr.c)" fit
 
 ### Syntax highlighting
 
-[Go](https://go.dev/):
+Go:
 
 ```go
 func main() {
@@ -166,7 +166,7 @@ Notice how we're appending `?w=100px` after the image URL and Trash automaticall
 ![alt text|50%](https://example.com/image.png?align=left "title")
 ```
 
-(you might remember this from [Obsidian](https://obsidian.md/))
+(you might remember this from [Obsidian](https://obsidian.md/)).
 
 # Other extensions
 
@@ -198,6 +198,8 @@ Use <kbd>Ctrl</kbd> + <kbd>C</kbd> or <kbd>⌘</kbd> + <kbd>C</kbd> to copy text
 
 #### East Asian line breaks
 
+Soft line breaks are rendered as a newline.
+
 小马宝莉的朋友们  
 她们一起经历冒险。  
 トワイライトスパークルと仲間たち  
@@ -205,12 +207,10 @@ Use <kbd>Ctrl</kbd> + <kbd>C</kbd> or <kbd>⌘</kbd> + <kbd>C</kbd> to copy text
 마이리틀포니 친구들  
 그들은 언제나 우정을 소중히 합니다。
 
-(Soft line breaks are rendered as a newline.)
-
 #### Escaped space
+
+The backslashes before the spaces are rendered as visible spaces instead of collapsing.
 
 小马宝莉\ 朋友们  
 トワイライト\ スパークル  
 마이리틀포니\ 친구들
-
-(The backslashes before the spaces are rendered as visible spaces instead of collapsing.)
