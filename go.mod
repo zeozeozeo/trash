@@ -8,9 +8,10 @@ require (
 	github.com/expr-lang/expr v1.17.6
 	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.9.0
-	github.com/tdewolff/minify/v2 v2.24.0
+	github.com/tdewolff/minify/v2 v2.24.2
 	github.com/yuin/goldmark-emoji v1.0.6
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
+	github.com/zeozeozeo/goldmark-enclave v0.0.0-20250831102224-e16b6a244aee
 	go.abhg.dev/goldmark/frontmatter v0.2.0
 	golang.org/x/text v0.28.0
 )
@@ -32,7 +33,7 @@ require (
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.4.0 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
-	github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6 // indirect
+	github.com/google/pprof v0.0.0-20250830080959-101d87ff5bc3 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -55,7 +56,6 @@ require (
 	github.com/jchenry/goldmark-pikchr v0.1.0
 	github.com/mangoumbrella/goldmark-figure v1.3.0
 	github.com/pelletier/go-toml/v2 v2.2.4
-	github.com/quailyquaily/goldmark-enclave v0.1.9
 	github.com/stefanfritsch/goldmark-fences v1.0.0
 	github.com/wyatt915/goldmark-treeblood v0.0.0-20250825231212-5dcbdb2f4b57
 	github.com/yuin/goldmark v1.7.13

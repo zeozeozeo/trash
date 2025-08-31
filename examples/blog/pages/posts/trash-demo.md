@@ -143,13 +143,13 @@ This is an extension of Markdown that allows you to place `<figure>` elements by
 <div style="display:flex; gap:20px; align-items:center;">
   <div>
 
-![](static/rainbow.webp?h=100px)
+![Rainbow Dash](static/rainbow.webp?h=100px)
 Rainbow Dash
 
   </div>
   <div>
 
-![](static/rarity.webp?h=100px)
+![Rarity](static/rarity.webp?h=100px)
 Rarity
 
   </div>
