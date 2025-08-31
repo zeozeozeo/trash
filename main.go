@@ -743,6 +743,20 @@ func (ctx *buildContext) stdFuncMap(page *Page, allPages []*Page, markdown goldm
 		"split":      func(sep, s string) []string { return strings.Split(s, sep) },
 		"fields":     func(s string) []string { return strings.Fields(s) },
 		"count":      func(substr, s string) int { return strings.Count(s, substr) },
+		"regexMatch": func(pattern, s string) (bool, error) {
+			reg, err := regexp.Compile(pattern)
+			if err != nil {
+				return false, err
+			}
+			return reg.MatchString(s), nil
+		},
+		"regexReplace": func(pattern, new, s string) (string, error) {
+			reg, err := regexp.Compile(pattern)
+			if err != nil {
+				return "", err
+			}
+			return reg.ReplaceAllString(s, new), nil
+		},
 
 		// math utilities
 		"add": func(a, b any) (any, error) {

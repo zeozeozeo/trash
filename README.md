@@ -179,6 +179,8 @@ Time is always returned and formatted in the UTC timezone, no matter what your l
 - `split "sep" str`: Slice `str` into all substrings separated by `sep`
 - `fields "string"`: Split `str` around each instance of one or more consecutive whitespace characters
 - `count "substr" str`: Return the number of non-overlapping instances of `substr` in `str`
+- `regexMatch "pattern" str`: Check if a string matches a regular expression
+- `regexReplace "pattern" "new" str`: Replace all regex matches with `str`
 
 #### Conditionals
 
