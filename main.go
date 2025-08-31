@@ -43,6 +43,7 @@ import (
 	enclave "github.com/zeozeozeo/goldmark-enclave"
 	enclaveCallout "github.com/zeozeozeo/goldmark-enclave/callout"
 	enclaveCore "github.com/zeozeozeo/goldmark-enclave/core"
+	enclaveMark "github.com/zeozeozeo/goldmark-enclave/mark"
 	fences "github.com/stefanfritsch/goldmark-fences"
 	"github.com/tdewolff/minify/v2"
 	"github.com/tdewolff/minify/v2/css"
@@ -1362,6 +1363,7 @@ func createMarkdownParser(mermaidTheme string, d2Sketch bool, d2Theme int64, pik
 			&pikchr.Extender{DarkMode: pikchrDarkMode},
 			enclave.New(&enclaveCore.Config{}),
 			enclaveCallout.New(),
+			enclaveMark.New(),
 			highlighting.NewHighlighting(
 				highlighting.WithFormatOptions(
 					chromahtml.ClassPrefix("highlight-"),

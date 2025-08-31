@@ -18,7 +18,7 @@ This readme is more of a reference; if you want pretty pictures, go see the ones
 - Automatially minifies output HTML, CSS, JS, JSON, SVG and XML for smallest builds
 - Lots of built-in template functions including an integration with the [Expr expression language](https://expr-lang.org/)
 - Built-in webserver with live-reloading (`trash serve`)
-- Under 1500 lines of Go code [in a single file](./main.go)
+- Under 1600 lines of Go code [in a single file](./main.go)
 
 ## Installation
 

@@ -192,6 +192,10 @@ This is a test of the typographer extension -- this should've been an em dash `-
 
 -# This is some small subtext.
 
+Use <kbd>Ctrl</kbd> + <kbd>C</kbd> or <kbd>⌘</kbd> + <kbd>C</kbd> to copy text (`<kbd>` tag).
+
+==You can highlight text== by wrapping it in `==`.
+
 #### East Asian line breaks
 
 小马宝莉的朋友们  
