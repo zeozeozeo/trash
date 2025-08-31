@@ -263,11 +263,11 @@ table = true   # whether to separate code and line numbers using a <td>, copy-pa
 
 [emoji]
 custom = true # use custom emoji rendering (by default this will make all emojis Twemojis)
-# the template to use for custom emojis (this is already what it is by default, you don't need to change it)
+# the template to use for custom emojis (already set to Twemoji by default, you don't need to change it)
 # it is a printf string with the following arguments:
 #   1: name (e.g. "face with tears of joy")
 #   2: file name without an extension (e.g. 1f646-2642)
-#   3: '/' if XHTML, otherwise ''
+#   3: ' /' if XHTML, otherwise ''
 #   4: unicode emoji (use this for alt text instead of %[1]s if you want copying to work properly)
 template = """\
 <img class="emoji" draggable="false" alt="%[1]s" style="height:1em;" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@latest/assets/72x72/%[2]s.png"%[3]s>\
