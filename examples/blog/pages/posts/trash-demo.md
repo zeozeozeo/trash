@@ -10,6 +10,24 @@ The frontmatter above can also be TOML if you enclose it in `+++` instead of `--
 This is how you do comments in Markdown, btw. They will not appear in the compiled HTML.
 -->
 
+Table of contents (generated automatically using `{{"{{"}} toc {{"}}"}}`):
+
+{{ toc | replace "$" "" | replace ":" "" }}
+
+---
+
+<script>
+// absolute hack to make sure <base> doesn't mess with the table of contents above
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener("click", e => {
+      e.preventDefault();
+      location.hash = a.getAttribute("href");
+    });
+  });
+});
+</script>
+
 Hello, world! This is a demo of the Trash website compiler. :wastebasket: <- `:wastebasket:`
 
 To view it properly, you can ask Trash to serve it with live-reloading:

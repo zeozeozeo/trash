@@ -52,6 +52,7 @@ import (
 	"github.com/yuin/goldmark"
 	emoji "github.com/yuin/goldmark-emoji"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
+	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer/html"
@@ -65,6 +66,7 @@ import (
 	"go.abhg.dev/goldmark/frontmatter"
 	"go.abhg.dev/goldmark/mermaid"
 	"go.abhg.dev/goldmark/mermaid/mermaidcdp"
+	"go.abhg.dev/goldmark/toc"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -374,11 +376,13 @@ type Page struct {
 	// Permalink is the final URL path for the page.
 	Permalink string
 	// RawContent is the raw file content.
-	RawContent string
+	RawContent []byte
 	// Content is the final HTML content after all processing.
 	Content template.HTML
 	// Metadata is the parsed YAML/TOML front matter.
 	Metadata map[string]any
+	// Doc is the markdown document parsed during the first discovery pass (frontmatter, TOC)
+	Doc ast.Node
 }
 
 type Site struct {
@@ -589,7 +593,7 @@ type DirEntry struct {
 	IsDir bool
 }
 
-func (ctx *buildContext) stdFuncMap(allPages []*Page) textTemplate.FuncMap {
+func (ctx *buildContext) stdFuncMap(page *Page, allPages []*Page, markdown goldmark.Markdown) textTemplate.FuncMap {
 	return textTemplate.FuncMap{
 		// FS utilities
 		"readDir": func(dir string) []*Page {
@@ -707,7 +711,7 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) textTemplate.FuncMap {
 			return u.String()
 		},
 		"joinPath": func(elem ...string) string { return filepath.Join(elem...) },
-		"truncate": func(s string, maxLength int) string {
+		"truncate": func(maxLength int, s string) string {
 			if len(s) <= maxLength {
 				return s
 			}
@@ -726,17 +730,17 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) textTemplate.FuncMap {
 			}
 			return buf.String(), nil
 		},
-		"replace":    func(s, old, new string) string { return strings.ReplaceAll(s, old, new) },
-		"startsWith": func(s, prefix string) bool { return strings.HasPrefix(s, prefix) },
-		"endsWith":   func(s, suffix string) bool { return strings.HasSuffix(s, suffix) },
-		"repeat":     func(s string, count int) string { return strings.Repeat(s, count) },
+		"replace":    func(old, new, s string) string { return strings.ReplaceAll(s, old, new) },
+		"startsWith": func(prefix, s string) bool { return strings.HasPrefix(s, prefix) },
+		"endsWith":   func(suffix, s string) bool { return strings.HasSuffix(s, suffix) },
+		"repeat":     func(count int, s string) string { return strings.Repeat(s, count) },
 		"toUpper":    func(s string) string { return strings.ToUpper(s) },
 		"toLower":    func(s string) string { return strings.ToLower(s) },
 		"title":      func(s string) string { return cases.Title(language.English).String(s) },
 		"strip":      func(s string) string { return strings.TrimSpace(s) },
-		"split":      func(s, sep string) []string { return strings.Split(s, sep) },
+		"split":      func(sep, s string) []string { return strings.Split(s, sep) },
 		"fields":     func(s string) []string { return strings.Fields(s) },
-		"count":      func(s, substr string) int { return strings.Count(s, substr) },
+		"count":      func(substr, s string) int { return strings.Count(s, substr) },
 
 		// math utilities
 		"add": func(a, b any) (any, error) {
@@ -997,6 +1001,24 @@ func (ctx *buildContext) stdFuncMap(allPages []*Page) textTemplate.FuncMap {
 			}
 			return m, nil
 		},
+		"toc": func() string {
+			if page == nil || page.Doc == nil {
+				return "> [!CAUTION]\n> Couldn't generate table of contents: failed to parse this file"
+			}
+			tree, err := toc.Inspect(page.Doc, page.RawContent, toc.Compact(true))
+			if err != nil {
+				return "> [!CAUTION]\n> Couldn't generate table of contents: " + err.Error()
+			}
+			list := toc.RenderList(tree)
+			if list == nil {
+				return ""
+			}
+			var out bytes.Buffer
+			if err := markdown.Renderer().Render(&out, page.RawContent, list); err != nil {
+				return "> [!CAUTION]\n> Couldn't generate table of contents: " + err.Error()
+			}
+			return out.String()
+		},
 	}
 }
 
@@ -1057,7 +1079,7 @@ func build(isServing, copyStatic bool) {
 }
 
 func (ctx *buildContext) loadTemplates() error {
-	t := template.New("").Funcs(ctx.stdFuncMap(ctx.Site.Pages))
+	t := template.New("").Funcs(ctx.stdFuncMap(nil, ctx.Site.Pages, ctx.MarkdownParser))
 
 	var layoutFiles []string
 	err := filepath.Walk(layoutsDir, func(path string, info os.FileInfo, err error) error {
@@ -1087,6 +1109,19 @@ func (ctx *buildContext) loadTemplates() error {
 
 func (ctx *buildContext) discoverAndParsePages() error {
 	var allPages []*Page
+	discoverParser := goldmark.New(
+		goldmark.WithRendererOptions(html.WithUnsafe()),
+		goldmark.WithParserOptions(parser.WithAutoHeadingID(), parser.WithAttribute()),
+		goldmark.WithExtensions(
+			extension.Typographer,
+			extension.CJK,
+			emoji.Emoji,
+			extension.GFM,
+			enclaveMark.New(),
+			&frontmatter.Extender{Mode: frontmatter.SetMetadata},
+		),
+	)
+
 	err := filepath.Walk(pagesDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -1103,13 +1138,12 @@ func (ctx *buildContext) discoverAndParsePages() error {
 		page := &Page{
 			SourcePath: path,
 			IsMarkdown: strings.HasSuffix(path, ".md"),
-			RawContent: string(fileContent),
+			RawContent: fileContent,
 			Metadata:   make(map[string]any),
 		}
 
-		mdFrontmatter := goldmark.New(goldmark.WithExtensions(&frontmatter.Extender{Mode: frontmatter.SetMetadata}))
-		root := mdFrontmatter.Parser().Parse(text.NewReader([]byte(page.RawContent)))
-		page.Metadata = root.OwnerDocument().Meta()
+		page.Doc = discoverParser.Parser().Parse(text.NewReader(page.RawContent))
+		page.Metadata = page.Doc.OwnerDocument().Meta()
 
 		if _, ok := page.Metadata["title"]; !ok && page.IsMarkdown {
 			page.Metadata["title"] = "Untitled"
@@ -1131,7 +1165,7 @@ func (ctx *buildContext) discoverAndParsePages() error {
 			page.Permalink = filepath.ToSlash(relPath)
 		}
 
-		if mermaidCompiler == nil && strings.Contains(page.RawContent, "```mermaid") {
+		if mermaidCompiler == nil && strings.Contains(string(page.RawContent), "```mermaid") {
 			maybeInitMermaidCDP(queryMapOrDefault(ctx.Config, "", "mermaid", "theme"))
 		}
 
@@ -1152,7 +1186,7 @@ func (ctx *buildContext) compileAndRenderPage(page *Page) error {
 		ctx.MarkdownParser = createMarkdownParser(ctx.Config)
 	}
 
-	tmpl, err := textTemplate.New(page.SourcePath).Funcs(ctx.stdFuncMap(ctx.Site.Pages)).Parse(page.RawContent)
+	tmpl, err := textTemplate.New(page.SourcePath).Funcs(ctx.stdFuncMap(page, ctx.Site.Pages, ctx.MarkdownParser)).Parse(string(page.RawContent))
 	if err != nil {
 		return fmt.Errorf("failed to parse markdown template: %w", err)
 	}

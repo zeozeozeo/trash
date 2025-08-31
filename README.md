@@ -12,9 +12,9 @@ This readme is more of a reference; if you want pretty pictures, go see the ones
 - [Pikchr](https://pikchr.org/home/doc/trunk/homepage.md) diagram rendering (you guessed it)
 - Painless embedding of YouTube videos, HTML5 audio, and more in native Markdown
 - Syntax highlighting
-- Various Markdown extensions such as image `<figure>`s, image sizing, callouts, Pandoc-style fences, `:emojis:`, and more
+- Various Markdown extensions such as image `<figure>`s, image sizing, callouts, Pandoc-style fences, `:emojis:`, ==text highlighting==, and more
 - YAML and TOML frontmatter parsing support
-- Automatic anchor placement
+- Automatic table of contents (TOC) generation and anchor placement
 - Automatially minifies output HTML, CSS, JS, JSON, SVG and XML for smallest builds
 - Lots of built-in template functions including an integration with the [Expr expression language](https://expr-lang.org/)
 - Built-in webserver with live-reloading (`trash serve`)
@@ -154,7 +154,7 @@ Time is always returned and formatted in the UTC timezone, no matter what your l
   ```go-template
   <img src="{{ concatURL .Config.site.url .Page.Metadata.image }}">
   ```
-- `truncate "string" length`: Shorten a string to a max length by adding `…`
+- `truncate length "string"`: Shorten a string to a max length by adding `…`
   ```go-template
   <p>{{ .Content | truncate 150 }}</p>
   ```
@@ -166,18 +166,18 @@ Time is always returned and formatted in the UTC timezone, no matter what your l
   ```go-template
   {{ .Page.Metadata.bio | markdownify }}
   ```
-- `replace str "old" "new"`: Replace every occurence of `old` with `new` in string `str`
-- `contains "string" "substring"`: Check if a string contains a substring
-- `startsWith "string" "prefix"`: Check if a string contains a prefix
-- `endsWith "string" "suffix"`: Check if a string contains a suffix
-- `repeat "string" count`: Repeat the string `count` times
+- `replace "old" "new" str`: Replace every occurence of `old` with `new` in string `str`
+- `contains "substring str"`: Check if a string contains a substring
+- `startsWith "prefix str"`: Check if a string contains a prefix
+- `endsWith "suffix str"`: Check if a string contains a suffix
+- `repeat count str`: Repeat the string `count` times
 - `toUpper "string"`: Make a string uppercase
 - `toLower "string"`: Make a string lowercase
 - `title "string"`: Make all words start with a capital letter, e.g. `title "hello world"` -> `"Hello World"`
 - `strip "string"`: Remove all leading and trailing whitespace in a string
-- `split "string" "sep"`: Slice `string` into all substrings separated by `sep`
-- `fields "string"`: Split `string` around each instance of one or more consecutive whitespace characters
-- `count "string" "substr"`: Return the number of non-overlapping instances of `substr` in `string`
+- `split "sep" str`: Slice `str` into all substrings separated by `sep`
+- `fields "string"`: Split `str` around each instance of one or more consecutive whitespace characters
+- `count "substr" str`: Return the number of non-overlapping instances of `substr` in `str`
 
 #### Conditionals
 
@@ -224,6 +224,7 @@ Time is always returned and formatted in the UTC timezone, no matter what your l
 
 #### Utility
 
+- `toc`: Render the automatically generated table of contents of the current document
 - `toJSON $data`: Convert a value to a JSON string
 - `fromJSON $data`: Parse a JSON string
 - `sprint "format" values...`: Return a formatted string, similar to `printf`
