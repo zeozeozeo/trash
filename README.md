@@ -15,10 +15,11 @@ This readme is more of a reference; if you want pretty pictures, go see the ones
 - Various Markdown extensions such as image `<figure>`s, image sizing, callouts, Pandoc-style fences, `:emojis:`, ==text highlighting==, and more
 - YAML and TOML frontmatter parsing support
 - Automatic table of contents (TOC) generation and anchor placement
+- Custom emoji rendering, e.g. [Twemoji](https://github.com/jdecked/twemoji)
 - Automatially minifies output HTML, CSS, JS, JSON, SVG and XML for smallest builds
 - Lots of built-in template functions including an integration with the [Expr expression language](https://expr-lang.org/)
 - Built-in webserver with live-reloading (`trash serve`)
-- Under 1600 lines of Go code [in a single file](./main.go)
+- Under 1700 lines of Go code [in a single file](./main.go)
 
 ## Installation
 
@@ -259,6 +260,18 @@ prefix = "highlight-" # CSS class prefix to use, this is the default
 [highlight.gutter]
 enabled = true # whether to show line numbers (default: false)
 table = true   # whether to separate code and line numbers using a <td>, copy-paste friendly (default: false)
+
+[emoji]
+custom = true # use custom emoji rendering (by default this will make all emojis Twemojis)
+# the template to use for custom emojis (this is already what it is by default, you don't need to change it)
+# it is a printf string with the following arguments:
+#   1: name (e.g. "face with tears of joy")
+#   2: file name without an extension (e.g. 1f646-2642)
+#   3: '/' if XHTML, otherwise ''
+#   4: unicode emoji (use this for alt text instead of %[1]s if you want copying to work properly)
+template = """\
+<img class="emoji" draggable="false" alt="%[1]s" style="height:1em;" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@latest/assets/72x72/%[2]s.png"%[3]s>\
+"""
 ```
 
 Aside from this, you can add your own fields, and access them in templates:

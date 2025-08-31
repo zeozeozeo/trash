@@ -214,6 +214,8 @@ Use <kbd>Ctrl</kbd> + <kbd>C</kbd> or <kbd>⌘</kbd> + <kbd>C</kbd> to copy text
 
 ==You can highlight text== by wrapping it in `==`.
 
+[Twemojis](https://github.com/jdecked/twemoji) (toggled by `emoji.custom` in the config): :sob: :pleading_face: :flushed: :pray: :fire: :heart: :wilted_flower: :tongue: :thumbsup: :rage: :broken_heart: :innocent: :pensive: :angry: :yum: :muscle: :drooling_face: :persevere: :face_holding_back_tears: :point_up: :cat: :sweat_smile: :skull: :brain: :low_battery: :rose: :mending_heart: :scream_cat: :whale: :nerd_face: :white_check_mark: :rainbow_flag: :transgender_flag: :transgender_symbol: :mango: :eggplant:
+
 #### East Asian line breaks
 
 Soft line breaks are rendered as a newline.

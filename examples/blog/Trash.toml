@@ -16,3 +16,6 @@ theme = 200   # see available themes at https://d2lang.com/tour/themes/
 
 [pikchr]
 dark = true # change pikchr colors to assume a dark-mode theme
+
+[emoji]
+custom = true

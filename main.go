@@ -51,12 +51,14 @@ import (
 	treeblood "github.com/wyatt915/goldmark-treeblood"
 	"github.com/yuin/goldmark"
 	emoji "github.com/yuin/goldmark-emoji"
+	east "github.com/yuin/goldmark-emoji/ast"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
-	"github.com/yuin/goldmark/ast"
+	gast "github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 	enclave "github.com/zeozeozeo/goldmark-enclave"
 	enclaveCallout "github.com/zeozeozeo/goldmark-enclave/callout"
 	enclaveCore "github.com/zeozeozeo/goldmark-enclave/core"
@@ -382,7 +384,7 @@ type Page struct {
 	// Metadata is the parsed YAML/TOML front matter.
 	Metadata map[string]any
 	// Doc is the markdown document parsed during the first discovery pass (frontmatter, TOC)
-	Doc ast.Node
+	Doc gast.Node
 }
 
 type Site struct {
@@ -1337,6 +1339,50 @@ func (cli mermaidCliBuilder) CommandContext(ctx context.Context, args ...string)
 	return exec.CommandContext(ctx, "mmdc", args...)
 }
 
+func emojiRenderer(w util.BufWriter, source []byte, node *east.Emoji, config *emoji.RendererConfig) {
+	s := " /"
+	if !config.XHTML {
+		s = ""
+	}
+
+	hasZWJ := slices.Contains(node.Value.Unicode, 0x200d)
+	var filename string
+
+	if hasZWJ {
+		values := make([]string, len(node.Value.Unicode))
+		for i, r := range node.Value.Unicode {
+			values[i] = fmt.Sprintf("%x", r)
+		}
+		filename = strings.Join(values, "-")
+	} else {
+		// for non-ZWG sequences, filter out variation selectors
+		filenameValues := make([]string, 0, len(node.Value.Unicode))
+		for _, r := range node.Value.Unicode {
+			if r != '\uFE0E' && r != '\uFE0F' {
+				filenameValues = append(filenameValues, fmt.Sprintf("%x", r))
+			}
+		}
+		filename = strings.Join(filenameValues, "-")
+	}
+
+	var emojiText strings.Builder
+	emojiText.Grow(len(node.Value.Unicode))
+	for _, r := range node.Value.Unicode {
+		emojiText.WriteRune(r)
+	}
+
+	fmt.Fprintf(
+		w,
+		config.TwemojiTemplate,
+		util.EscapeHTML(util.StringToReadOnlyBytes(node.Value.Name)), // 1: name
+		filename, // 2: filename
+		s,        // 3: XHTML suffix
+		util.EscapeHTML(util.StringToReadOnlyBytes(emojiText.String())), // 4: unicode emoji
+	)
+}
+
+const defaultTwemojiTemplate = `<img class="emoji" draggable="false" alt="%[4]s" style="height:1em;vertical-align:middle;" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@latest/assets/72x72/%[2]s.png"%[3]s>`
+
 func createMarkdownParser(config map[string]any) goldmark.Markdown {
 	var anchorText *string
 	if text, exists := queryMap(config, "anchor", "text"); exists {
@@ -1368,13 +1414,22 @@ func createMarkdownParser(config map[string]any) goldmark.Markdown {
 		compiler = mermaidCompiler
 	}
 
+	var emojiExt goldmark.Extender = emoji.Emoji
+	if queryMapOrDefault(config, false, "emoji", "custom") {
+		emojiExt = emoji.New(
+			emoji.WithRenderingMethod(emoji.Func),
+			emoji.WithTwemojiTemplate(queryMapOrDefault(config, defaultTwemojiTemplate, "emoji", "template")),
+			emoji.WithRendererFunc(emojiRenderer),
+		)
+	}
+
 	extensions := []goldmark.Extender{
 		extension.GFM,
 		extension.DefinitionList,
 		extension.Footnote,
 		extension.Typographer,
 		extension.CJK,
-		emoji.Emoji,
+		emojiExt,
 		treeblood.MathML(),
 		&frontmatter.Extender{},
 		&d2.Extender{Sketch: queryMapOrDefault(config, true, "d2", "sketch"), ThemeID: d2ThemeId},
