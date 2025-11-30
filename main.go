@@ -139,6 +139,8 @@ func main() {
 			os.Exit(1)
 		}
 
+		os.MkdirAll(targetDir, 0755)
+
 		if err := os.Chdir(targetDir); err != nil {
 			printerr("Failed to change to directory `%s`: %v", targetDir, err)
 			os.Exit(1)
