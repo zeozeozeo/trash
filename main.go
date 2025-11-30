@@ -386,7 +386,9 @@ type Page struct {
 	// Metadata is the parsed YAML/TOML front matter.
 	Metadata map[string]any
 	// Doc is the markdown document parsed during the first discovery pass (frontmatter, TOC)
-	Doc gast.Node
+	Doc       gast.Node
+	compiled  bool
+	compiling bool
 }
 
 type Site struct {
@@ -600,15 +602,20 @@ type DirEntry struct {
 func (ctx *buildContext) stdFuncMap(page *Page, allPages []*Page, markdown goldmark.Markdown) textTemplate.FuncMap {
 	return textTemplate.FuncMap{
 		// FS utilities
-		"readDir": func(dir string) []*Page {
+		"readDir": func(dir string) ([]*Page, error) {
 			var results []*Page
 			for _, p := range allPages {
 				relPath, _ := filepath.Rel(pagesDir, p.SourcePath)
 				if strings.HasPrefix(filepath.ToSlash(relPath), dir+"/") {
+					if !p.compiled {
+						if err := ctx.computeContent(p); err != nil {
+							return nil, err
+						}
+					}
 					results = append(results, p)
 				}
 			}
-			return results
+			return results, nil
 		},
 		"listDir": func(dir string) ([]DirEntry, error) {
 			entries, err := os.ReadDir(dir)
@@ -1081,7 +1088,7 @@ func build(isServing, copyStatic bool) {
 	}
 
 	for _, page := range ctx.Site.Pages {
-		if err := ctx.compileAndRenderPage(page); err != nil {
+		if err := ctx.writePageToDisk(page); err != nil {
 			printerr("Failed to process page %s: %v", page.SourcePath, err)
 		}
 	}
@@ -1199,11 +1206,25 @@ func (ctx *buildContext) discoverAndParsePages() error {
 	return nil
 }
 
-func (ctx *buildContext) compileAndRenderPage(page *Page) error {
+// computeContent compiles the markdown/template into HTML but DOES NOT write to disk.
+func (ctx *buildContext) computeContent(page *Page) error {
+	if page.compiled {
+		return nil
+	}
+	if page.compiling {
+		return fmt.Errorf("cyclic dependency detected in %s", page.SourcePath)
+	}
+	page.compiling = true
+	defer func() {
+		page.compiling = false
+		page.compiled = true
+	}()
+
 	if ctx.MarkdownParser == nil {
 		ctx.MarkdownParser = createMarkdownParser(ctx.Config)
 	}
 
+	// create a template for this page
 	tmpl, err := textTemplate.New(page.SourcePath).Funcs(ctx.stdFuncMap(page, ctx.Site.Pages, ctx.MarkdownParser)).Parse(string(page.RawContent))
 	if err != nil {
 		return fmt.Errorf("failed to parse markdown template: %w", err)
@@ -1211,6 +1232,7 @@ func (ctx *buildContext) compileAndRenderPage(page *Page) error {
 
 	var processedContent bytes.Buffer
 	templateData := TemplateData{Site: ctx.Site, Page: page, Config: ctx.Config, IsServing: ctx.IsServing}
+
 	if err := tmpl.Execute(&processedContent, templateData); err != nil {
 		return fmt.Errorf("failed to execute markdown template: %w", err)
 	}
@@ -1223,6 +1245,17 @@ func (ctx *buildContext) compileAndRenderPage(page *Page) error {
 		page.Content = template.HTML(finalContent.String())
 	} else {
 		page.Content = template.HTML(processedContent.String())
+	}
+
+	return nil
+}
+
+// writePageToDisk takes a compiled page, applies layout, and saves it.
+func (ctx *buildContext) writePageToDisk(page *Page) error {
+	if !page.compiled {
+		if err := ctx.computeContent(page); err != nil {
+			return err
+		}
 	}
 
 	outputPath := filepath.Join(outputDir, strings.TrimPrefix(page.Permalink, "/"))
