@@ -16,6 +16,7 @@ This readme is more of a reference; if you want pretty pictures, go see the ones
 - YAML and TOML frontmatter parsing support
 - Automatic table of contents (TOC) generation and anchor placement
 - Custom emoji rendering, e.g. [Twemoji](https://github.com/jdecked/twemoji)
+- Chart rendering inside Markdown using [Chart.JS](https://www.chartjs.org/) and the [Markviz](https://markvis.js.org/) format.
 - Automatially minifies output HTML, CSS, JS, JSON, SVG and XML for smallest builds
 - Lots of built-in template functions including an integration with the [Expr expression language](https://expr-lang.org/)
 - Built-in webserver with live-reloading (`trash serve`)
