@@ -186,7 +186,65 @@ Notice how we're appending `?w=100px` after the image URL and Trash automaticall
 
 (you might remember this from [Obsidian](https://obsidian.md/)).
 
-# Other extensions
+### Chart
+
+Render static charts with [Chart.JS](https://www.chartjs.org/) using the [Markviz](https://markvis.js.org/) format (requires JavaScript to be enabled).
+
+<!-- TODO: this is horrible, figure something out to insert this script automatically -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
+
+```vis
+  layout: pie
+  radius: 150
+  height: 400px
+  title: Animals Seen in a Day
+  data: [
+    { key: "Dog", value: 5 },
+    { key: "Cat", value: 4 },
+    { key: "Squirrel", value: 7 },
+    { key: "Deer", value: 2 },
+    { key: "Chipmunk", value: 4 },
+    { key: "Mouse", value: 8 },
+    { key: "Otter", value: 3 },
+    { key: "Beaver", value: 6 }
+  ]
+```
+
+```vis
+  layout: line
+  height: 400px
+  title: Ants Seen Per Day
+  label: Ants
+  data: [
+    { key: 0, value: 45 },
+    { key: 1, value: 103 },
+    { key: 2, value: 74 },
+    { key: 3, value: 26 },
+    { key: 4, value: 32 },
+    { key: 5, value: 86 },
+    { key: 6, value: 15 },
+    { key: 7, value: 61 }
+  ]
+```
+
+```vis
+  layout: bar
+  height: 400px
+  title: Squirrels Seen Per Day
+  label: Squirrels
+  data: [
+    { key: 0, value: 5 },
+    { key: 1, value: 4 },
+    { key: 2, value: 7 },
+    { key: 3, value: 2 },
+    { key: 4, value: 4 },
+    { key: 5, value: 8 },
+    { key: 6, value: 3 },
+    { key: 7, value: 6 }
+  ]
+```
+
+## Other extensions
 
 #### This is a red heading made with the CommonMark [attribute syntax](https://talk.commonmark.org/t/consistent-attribute-syntax/272) ## {.highlight-nl}
 
@@ -215,6 +273,8 @@ Use <kbd>Ctrl</kbd> + <kbd>C</kbd> or <kbd>⌘</kbd> + <kbd>C</kbd> to copy text
 ==You can highlight text== by wrapping it in `==`.
 
 [Twemojis](https://github.com/jdecked/twemoji) (toggled by `emoji.custom` in the config): :sob: :pleading_face: :flushed: :pray: :fire: :heart: :wilted_flower: :tongue: :thumbsup: :rage: :broken_heart: :innocent: :pensive: :angry: :yum: :muscle: :drooling_face: :persevere: :face_holding_back_tears: :point_up: :cat: :sweat_smile: :skull: :brain: :low_battery: :rose: :mending_heart: :scream_cat: :whale: :nerd_face: :white_check_mark: :rainbow_flag: :transgender_flag: :transgender_symbol: :mango: :eggplant:
+
+`:cry:` - :cry:
 
 #### East Asian line breaks
 

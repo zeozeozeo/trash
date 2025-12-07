@@ -31,6 +31,7 @@ import (
 	_ "embed"
 
 	d2 "github.com/FurqanSoftware/goldmark-d2"
+	goldmarkChart "github.com/TheGreatRambler/goldmark-chart"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/expr-lang/expr"
@@ -1491,6 +1492,7 @@ func createMarkdownParser(config map[string]any) goldmark.Markdown {
 		enclave.New(&enclaveCore.Config{}),
 		enclaveCallout.New(),
 		enclaveMark.New(),
+		&goldmarkChart.Chart{},
 		&fences.Extender{},
 		figure.Figure,
 		&anchor.Extender{
