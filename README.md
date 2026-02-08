@@ -379,6 +379,8 @@ Since Trash generates a static website, you can use [GitHub Pages](https://docs.
 
 4. After the `deploy` step finishes, the page should be live at `https://<your_github_username>.github.io/<your_repo_name>`
 
+(An example of a repository with this action set up can be found at [zeozeozeo/trash-action-example](https://github.com/zeozeozeo/trash-action-example))
+
 > [!NOTE]
 > If you are using Mermaid diagrams, CI can be a little bit flaky. If you are getting the following errors when building the site:
 >
