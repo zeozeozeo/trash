@@ -334,7 +334,7 @@ Since Trash generates a static website, you can use [GitHub Pages](https://docs.
 3. Create `.github/workflows/build.yml`:
 
    ```yml
-   name: Build and Deploy Page
+   name: Deploy Trash Site
 
    on:
      push:
@@ -359,39 +359,21 @@ Since Trash generates a static website, you can use [GitHub Pages](https://docs.
      build:
        runs-on: ubuntu-latest
        steps:
-         - name: Checkout
-           uses: actions/checkout@v4
-
-         - name: Setup Go
-           uses: actions/setup-go@v4
-           with:
-             go-version: "^1.25.0"
-
-         - name: Setup Trash
-           run: go install github.com/zeozeozeo/trash@latest
-
-         - name: Build Site
-           run: |
-             TRASH_NO_SANDBOX=1 ./trash build .
-
-         - name: Setup Pages
-           uses: actions/configure-pages@v4
-
-         - name: Upload artifact
-           uses: actions/upload-pages-artifact@v4
+         - uses: actions/checkout@v4
+         - uses: zeozeozeo/trash-build-action@v1
+         - uses: actions/upload-pages-artifact@v4
            with:
              path: ./out
 
      deploy:
        if: github.ref == 'refs/heads/main' # change "main" to the branch you want to deploy from
+       needs: build
+       runs-on: ubuntu-latest
        environment:
          name: github-pages
          url: ${{ steps.deployment.outputs.page_url }}
-       runs-on: ubuntu-latest
-       needs: build
        steps:
-         - name: Deploy to GitHub Pages
-           id: deployment
+         - id: deployment
            uses: actions/deploy-pages@v4
    ```
 
